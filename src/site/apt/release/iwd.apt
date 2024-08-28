@@ -1,0 +1,19 @@
+		----------------------------------
+		Internal Workings Description
+		----------------------------------
+				Alex McAllister
+				---------------
+				   2012-11-06
+
+
+Internal Workings Description
+
+* Impacts on Other Components
+
+** Presentation layer
+
+	Our solution needs to intercept any HTTP requests made to static resources we wish to protect. As such, a <<Policy Agent>> needs to be installed on the Apache httpd web server that is hosting this content. The server needs to be shut down, an install script run against it, and restarted.
+
+	The server also needs to have JDK1.6 installed.
+
+	Since all traffic will eventually be encrypted, the Apache httpd web server needs to have <<mod_ssl>> added, enabled and configured with a valid X509 certificate.

@@ -1,0 +1,174 @@
+		--------------
+		GIT
+		--------------
+
+
+GIT Guide
+
+===
+
+* Introduction
+
+
+	Git is a free and open source distributed version control system designed to handle everything from small to very large projects with speed and efficiency.Git was initially designed and developed by Linus Torvalds for Linux kernel development; it has since been adopted by many other projects. Every Git working directory is a full-fledged repository with complete history and full revision tracking capabilities, not dependent on network access or a central server. 
+	Git is free software distributed under the terms of the GNU General Public License version 2.
+
+* Git Branching Strategy 1 (merge)
+
+	The diagram below illustrates the SSO GIT branching strategy
+	
+	<<Summary:>>
+	
+	* Separate branch per user story (unless unreasonable)
+	
+	* Keep local master up to date with remote origin on a constant basis
+	
+	* Merge strategy is remote origin > local master > story branch on a daily basis (or more frequent if required). All conflicts resolved on story branch
+	
+	* Only merge to local master once conflicts resolved.
+
+	[]
+	
+[../images/git-strategy.png] Git Branching Strategy 1 (merge)
+
+
+	[[1]]It is required to continually pull from the remote master to ensure latest code is available on the local master
+	
+		<<git pull>>
+	
+	[[2]]Create local branch dTT1 (note: all branches should be appended with a lower case d) git checkout –b dTT1
+
+	[[3]]Implement story on dTT1 and commit 
+	
+		<<git commit –a –m “Comment”>>
+		
+		[[i]]-a  (Tell the command to automatically stage files that have been modified and deleted, but new files you have not told git about are not affected.) 
+		
+		[[ii]]-m (message string)
+
+	[[4]]When story is coded, it is required to merge the latest code from the local master to dTT1 (again ensure that the latest remote master code has been previously pulled down).
+		
+		<<git checkout master>>
+		<<git pull>> 
+		<<git checkout dTT1>>
+        <<git merge master>>
+        
+        	[[i]]Conflicts may occur here so may need to issue the git mergetool command). 
+        	
+        <<git commit>>
+
+	[[5]]The code can be sent for code review. Be careful here to include only the correct files for code review. Review items may need to be added manually to the review.
+
+	[[6]]Push from the local story branch to the remote story branch
+		git checkout dTT1
+		git push origin dTT1
+
+	[[7]]Review the code
+
+	[[9]]Update code if required following code review
+
+	[[10]]pull from the remote master to ensure latest code is available
+	
+		[[i]]git checkout master
+		
+		[[i]]git pull
+
+	[[1]]Merge the from local story branch dTT1 to the local master and verify all test cases pass locally.
+	
+		[[i]]git merge dTT1
+
+	[[11]]Push from the local master to the remote master
+		[[ii]git push origin
+
+	[[12]]Verify all existing test cases pass on Jenkins
+
+	[]
+
+* Git Strategy 2 (rebase)
+
+	When working on a local branch, it may be beneficial (from the git log point of view) to use <<<git rebase>>> instead of merge
+
+	[[1]] Get latest copy of the remote master branch
+
+		<<git checkout master && git pull>>
+
+	[[2]] Create a branch and do some work on it
+
+		<<git checkout -b -d\<branch-name\>>>
+
+		work
+
+		<<git stage -A && git commit -m "Commit message">>
+
+		or
+
+		<<git add . && git commit -a -m "Commit message">>
+
+	[[3]] Send code for review
+
+	[[4]] Now, rebase
+
+		<<git rebase master d\<branch-name\>>>
+
+		Should see something like:\
+		First, rewinding head to replay your work on top of it...\
+		Applying: \<some commit message\>
+		Applying: \<some other commit message\>
+		Applying: \<your last commit message\>
+
+	[[5]] Merge these changes with master
+
+		<<git checkout master && git merge \<branch-name\>>>
+
+		and send them to remote master
+
+		<<git push origin master>>
+
+	[]
+
+* Code Review
+
+	We use {{{http://gerrit-documentation.googlecode.com/svn/Documentation/2.3/index.html}Gerrit}} for code review round these parts. Before pushing to origin/branch-name, you can push to the Gerrit concept "branch" <<<refs/for/branch-name>>>. This will make your commits since last push appear in Gerrit ready for review. Simply add two reviewers and when they have approved your code, merge to master and push.
+
+** Git <<commit-msg>> Hook
+
+	This is required for the "Change-Id" message added to review commits. Download using cURL:
+
+---------------------------
+curl http://eselivm2v238l.lmera.ericsson.se:8888/tools/hooks/commit-msg -o ./.git/hooks/commit-msg
+---------------------------
+
+	Push your changes to Gerrit:
+
+-------------------------------
+git commit -m "Ready for review"
+git push origin HEAD:refs/for/dTORFEATUREBRANCH
+
+# Example output
+
+Counting objects: 26, done.
+Delta compression using up to 4 threads.
+Compressing objects: 100% (11/11), done.
+Writing objects: 100% (12/12), 3.06 KiB, done.
+Total 12 (delta 8), reused 0 (delta 0)
+remote: Resolving deltas: 100% (8/8)
+remote: Processing changes: new: 3, refs: 3, done
+remote:
+remote: New Changes:
+remote:   http://eselivm2v238l.lmera.ericsson.se:8888/194
+remote:
+To ssh://ealemca@eselivm2v238l.lmera.ericsson.se:29418/com.ericsson.nms.sso/SingleSignOn.git
+ * [new branch]      HEAD -> refs/for/dTORFTUISSO-518
+-------------------------------
+
+	Browse to the URL in the message and you can add reviewers (Gerrit needs at least two to approve and verify a submission)
+
+** Submitting a 'Patch Set'
+
+	After making changes based on review comments and suggestions, you can submita patch for further review. Make your changes, amed the last commit and push to the same review branch:
+
+------------------
+git add <files..>
+git commit --amend
+git push origin HEAD:refs/for/dTORFEATUREBRANCH
+------------------

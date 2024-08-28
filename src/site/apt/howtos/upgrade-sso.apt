@@ -1,0 +1,30 @@
+		-----------------------------------------
+                Upgrade SSO RPMs
+		-----------------------------------------
+					Nicholas Fitzgerald
+					---------------
+					  2013-07-08
+
+Upgrading SSO RPMs
+
+=========================================					  
+
+	[[1]]The SSO Upgrade script is bundled with the CI Deployment Scripts at <<</opt/ericsson/nms/litp/bin/deployment/sso/other/>>>. 
+
+	[[2]]Create the following directory on the MS - <<</var/tmp/sso_upgrade_pkgs>>>
+
+	[[3]]Copy the appropriate SSO RPMs to the above directory. Valid RPMs are - <<<ERICsecuritysvc, ERICsinglesignon, ERICssoapa, ERICssologger>>>
+ 
+	[[4]]Call the Upgrade script:
+ 
++----------------------------------+
+ cd /opt/ericsson/nms/litp/bin/deployment/sso/other/
+ ./upgrade_sso.sh
++----------------------------------+
+
+	[]
+~~The password for the VM is <<<ciroot2>>>.
+~~ssh -l eeidwn 10.45.18.219
+~~cd /var/tmp/eeidwn_git_repo/SingleSignOnFiles/sso/other
+~~git pull
+~~scp upgrade_sso.sh root@<MS server ip>:/var/tmp

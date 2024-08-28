@@ -1,0 +1,171 @@
+		----------------
+		Design Decisions
+		----------------
+
+SSO Design Decisions and Implications
+
+==================================================================================================================
+
+* TOC
+
+	* Login Screen
+
+	* Login Screen Deployment
+
+	* User ID
+
+	[]
+
+==================================================================================================================
+
+* Login Screen
+
+	Decide whether or not to use the OpenAM REST interface for authenticating users based on credentials forwarded from the TOR login screen.
+
+	Presently, when users attempt to access a protected resource, they are redirected (if no valid session exists) to OpenAM's login page which is embedded within the deployed .war file and (heavily) based on JSP. We currently have some light branding (demo version) applied to this login page but we would like to completely replace it with a fully Ericsson-branded login screen. This is based on HTML 5 and JavaScript and would be easiest to deploy separately to OpenAM.
+
+** Assumptions
+	
+	* The web-based GUI is currently the only point of access for TOR applications, as discussed between Brian Gunning (TOR_FT_SSO) and Joe Gaffey (TOR_FT_UI).
+
+	[]
+
+** Current Flow
+
+	Current user interaction with OpenAM login
+
+[../images/login-current-flow.png] Current user interaction with OpenAM login
+
+** Proposed Solutions
+
+	[[a]]REST-based interaction with OpenAM login and redirect to main login servlet (with credentials as parameters)
+
+		Make an AJAX call to the REST resource, either get a 401 code and act accordingly or receive 200 and redirect to the "real" login service with the original target url as a "goto" paramater. Final redirection would look like
+
++-------------------+
+POST http://openam/UI/Login?username=<form-username-value>&password=<form-password-value>&goto=<original-target-url>
++-------------------+
+
+	[[b]]REST-based interaction with OpenAM login and setting the cookie manually with JQuery
+
+		Make the AJAX call as in scenario a, but use the "success" function to establish the session and redirect the user
+
+	[[c]]Direct request to main OpenAM login servlet (with username and password as parameters)
+
+		Requires complete integration of OpenAM and TOR login screen.
+
+	[]
+
+~~[../images/login-proposed-flow-a.png] REST-based interaction with OpenAM login and redirect to main login servlet (with credentials as parameters)
+~~[../images/login-proposed-flow-b.png] REST-based interaction with OpenAM login and setting the cookie manually with JQuery
+~~[../images/login-proposed-flow-c.png] Direct request to main OpenAM login servlet (with username and password as parameters)
+	
+** Decision
+
+	Flow scenario <<A>>.
+
+** Reasons
+
+	* A failed authentication attempt with method <<A>> will <<not>> produce a 401 response code - users are redirected to an OpenAM failed login page.
+
+	* OpenAM cannot be modified easily (i.e., a simple change to web.xml) to return proper response codes, or at least stop intercepting failed authentication requests and redirecting to error pages.
+
+	* Authenticating using the REST interface using method <<B>> requires additional work in setting and maintaining the session cookie.
+
+		Can be done with JQuery (using <<<$.cookie("name", "value")>>>).
+
+	[]
+
+	The simplest method is to authenticate using REST (which will produce the appropiate response codes) then let OpenAM establish the session with the browser using cookies.
+
+** Implications
+
+	* With any method, the login screen needs to be configured at build time to point the <<ACTION>> function of the form to redirect to the exact OpenAM deployment URI.
+
+	* The login screen functionality needs to be extended to append the incoming request's URI (URL encoded), along with the users credentials taken from the form input fields to the <<ACTION>>
+
+	[]
+
+===================================================================================================================
+
+* Login Screen Deployment
+
+	Decide where to deploy the new TOR Login Screen
+
+** Decision
+	
+	Deployed under httpd root document directory (<<</var/www/html/login/>>>) on the same server as OpenAM
+
+** Reasons
+
+	* Simplest deployment - set up a proxy rule and deploy OpenAM on JBoss behind httpd
+
+	* AJAX calls need to be directed to a local resource - <<</openam/identity/authenticate>>> - until JSONP is implemented
+	
+	[]
+
+===================================================================================================================
+
+* User ID
+
+	Decide how to pass the user's id/name from the load balancer to JBoss REST backend.
+
+** Assumptions
+
+	* User's request has been intercepted by Policy Agent and has been redirected to the login screen.
+
+	* User has authenticated successfully and been redirected to the requested resource (initially, static content hosted on load balancer).
+
+	[]
+
+** Proposals
+
+	* AJP connector with patch applied to JBoss EAP6 to enable the "tomcatAuthentication=false" cabability.
+
+		This creates a <<<org.apache.catalina.connector.CoyotePrincipal>>> object with the username, but since it is bypassing all the container security mechanisms, there are no standard role-checking mechanisms applied either.
+
+	* Add an extra <<X-Header>> to each request from the load balancer which the REST API will consume.
+
+		By adding a simple Apache httpd <<<mod_headers>>> directive to the load balancing (reverse proxy) section of <<httpd.conf>>, the value of <<<REMOTE_USER>>> is inserted into a custom header and added to each outgoing request to the JBoss backend. <<<REMOTE_USER>>> (an Apache httpd environment variable) is set by the OpenAM Policy Agent after successful authentication.
+
+		[]
+
+** Decision
+
+	Add extra header to each request.
+
+** Reasons
+
+	* Avoids extra complexity in appliying (and maintaining) patch added by RedHat support.
+	
+	* Adding authorisation capabilities to <<<org.apache.catalina.connector.CoyotePrincipal>>> is not trivial.
+	
+	* Adding header to request is trivial and requires no extra code, external script, just {{{http://httpd.apache.org/docs/current/mod/mod_headers.html}Apache httpd configuration}}.
+
+	[]
+
+** Implications
+	
+	REST API needs to know exact header name. Code will look something like <<<request.getHeader("X-<HeaderName>")>>> rather than <<<request.getUserPrincipal()>>>
+
+===================================================================================================================
+
+* Clustering
+
+	Decide whether or not to join main JBoss clustering solution
+
+** Proposals
+
+	* Attempt to obtain clustering at a JEE container level
+
+	* Utilise OpenAM's clustering solution which operates at an application level
+
+	* Rely on overall HA solution to provide Service-Unit failover
+
+** Decision
+	
+	Rely on overall HA solution to provide Service-Unit failover.
+
+** Reasons
+
+	* Implementing OpenAM level clustering involves using the Proxy Balancer module of Apache which will conflict with the main Apache mod_cluster configuration which is providing HA and load balancing for the UI services. It also invloves exposing extra ports to enable session replication across the two nodes.

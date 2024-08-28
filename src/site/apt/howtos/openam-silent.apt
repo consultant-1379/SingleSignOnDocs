@@ -1,0 +1,100 @@
+		-------------------------------------------------------------------
+		OpenAm Silent installation and configuration using configurator.jar
+		-------------------------------------------------------------------
+							   Adam Szigeti
+							   ---------------
+							   2012-10-30
+				
+				
+OpenAm Silent installation and configuration using configurator.jar
+
+=========================================================
+
+
+* Scope
+
+	This document describes the basic structure of the Install scripts and shows how to run them. 
+
+* Requirements
+
+	The following are assumed to be installed and configured:
+
+	* LITP supporting rsync command
+
+	* JDK 1.6+
+
+	* JBoss EAP 6
+	
+
+* Description of the scripts
+
+	The installation and configuration process consists of three script files.
+
+	The install scripts can be found in a zip file called <<openamai.zip>>.
+	
+	This zip file contains the <<openamai.sh file>> and two folders called <<config>>, and <<common>>.
+	
+	Under the <<config>> folder can be found the <<demo.sh>> file while under the <<common>> folder the <<functions.sh>>	
+	
+	The main script is the <<openamai.sh>> that takes the <<demo.sh>> script as a parameter. 
+	
+	The <<openam.sh>> will extract our <<openam.war>> file, copy it into the deployments folder of the JBoss container and then install/configure OpenAm.
+	
+	This configuration happens through an official configurator.jar file provided by Forgerock. 
+	
+	The configurator.jar file lets you perform silent installation, configuring a deployed OpenAM server by applying settings from a configuration file.
+	
+	The configuration file is created temporarily by the openamai.sh and is reading values described in the demo.sh .
+	
+	The structure of the configuration file is the following
+	
++-----------------+
+SERVER_URL=$OPENAM_SERVER_URL
+DEPLOYMENT_URI=$OPENAM_DEPLOYMENT_URI
+BASE_DIR=$OPENAM_DATA_DIR
+locale=en_US
+PLATFORM_LOCALE=en_US
+AM_ENC_KEY=
+ADMIN_PWD=$OPENAM_ADMIN_PASSWORD
+AMLDAPUSERPASSWD=$OPENAM_URLAGENT_PASSWORD
+COOKIE_DOMAIN=.example.com
+	
+DATA_STORE=embedded
+DIRECTORY_SSL=SIMPLE
+DIRECTORY_SERVER=opendj.example.com
+DIRECTORY_PORT=389
+DIRECTORY_ADMIN_PORT=4444
+DIRECTORY_JMX_PORT=1689
+ROOT_SUFFIX=o=openam
+DS_DIRMGRDN=cn=Directory Manager
+DS_DIRMGRPASSWD=$OPENDJ_ROOT_PASSWORD
+	
+LB_SITE_NAME=lb
+LB_PRIMARY_URL=http://lb.example.com:80/openam
+	
+USERSTORE_TYPE=LDAPv3ForOpenDS
+USERSTORE_SSL=SIMPLE
+USERSTORE_HOST=opendj.example.com
+USERSTORE_PORT=389
+USERSTORE_SUFFIX=dc=example,dc=com
+USERSTORE_MGRDN=cn=Directory Manager
+USERSTORE_PASSWD=$OPENDJ_ROOT_PASSWORD
++-------------------+
+	
+	You can read more about the possible configurations {{{http://openam.forgerock.org/openam-documentation/openam-doc-source/doc/reference/index/man-configurator-jar-1.html}Here}}
+	
+	The <<functions.sh file>> is used by the openamai.sh and provides basic logging.
+	
+* Running the Script
+	
+	To run the installer first extract it into a folder and configure the demo.sh file according to your needs.
+	
+	After all the variables are set properly, run the openamai.sh script and give the demo.sh as a parameter to it : ./openamai.sh config/demo.sh
+	
+	
+	
+	
+	
+	
+	
+	

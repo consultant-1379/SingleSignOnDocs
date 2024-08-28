@@ -1,0 +1,342 @@
+		--------------
+		Scripting guidelines
+		--------------
+
+
+Scripting guidelines for SSO Scripts
+
+===
+
+* Introduction
+
+
+	To ensure that the SSO scripts comform to a standard layout and format and that there easily maintainable by all people within there are a set of quidelines that should be followed.
+	The guidelines there should be followed where at all possible, although there will always be some exceptions. This document will be most relevant for quality improvements in new scripts and can be applied to existing scripts during refactoring.
+
+* Script basics
+
+	* Use of common shell
+	
+		All new shell scripts should be implemented using the bourne again shell. Any reworking of existing non bash scripts should also take this into consideration.
+
+	* Standard layout
+	
+			Each script should be laid out as follows:
+			
+			Heading, describing the purpose of the script
+			
+			Functions
+			
+			Commands
+			
+			Variables
+			
+			Main body of scripts
+
+	
+	* System commands
+	
+			All system commands should be aliased.
+			
+			For example do not call grep, instead alias grep at the start of the script
+
++-----------------+						
+			GREP=/bin/grep
+			$GREP <search pattern> /file/to/search
++------------------+
+			
+			This will avoid relying on having the correct path set for a user.
+			
+			This will also avoid sourcing a different binary than was tested against, i.e. GNU grep may be sourced when XPG4 grep was needed depending on the $PATH variable.
+			
+			All commands should be aliased in uppercase.
+	
+	* Variable naming
+	
+		    When setting variable values use the convention of starting the variable with l_ and g_ for local function variables and global variables respectively. 
+			
+			This will make variables much easier to identify throughout the script. 
+			
+			The variables should also be given meaningful names, i.e. do not use g_var1. Use a meaningful value like g_ldap_dn_suffix.
+	
+	* Sourcing other files or scripts
+	
+			Whenever another file should be sourced, always check for the existance of that file. 
+			
+			Never assume that the file exists, always check that it exists and if it does not then exit with an error code and log why the script exited.
+			
+	
+	* Defining functions
+	
+			All functions should have comments at the start describing what the functions do, along with describing any arguments and return values
+
++-----------------+
+			### Function: check_id_root ###
+			#
+			#   Check that the effective id of the user is 0
+			#   i.e. root. If not root, print error msg and exit.
+			#
+			# Arguments:
+			#       none
+			# Return Values:
+			#       none
+			function check_id_root()
+			{
+				l_effect_id_=`$ID | $SED 's/uid=\([0-9]*\)(.*/\1/'` 
+				
+				if [ $l_efect_id !-eq "0" ]; then
+					bailout "You must be root"
+				fi
+				
+			}
++------------------+
+
+	* Common functions
+		
+			Whenever possible don't define a function that can be re-used by other scripts. Instead define all common functions within a .lib file and source this file in the script. This will avoid duplication of code and duplication of maintenance.
+			
+			An example would be checking what SC you are currently running on. 
+			
+	* Script Exiting 
+
+			Scripts should all have a cleanup method within them for exiting. Instead of calling exit directly instead the cleanup function should be called which will remove any temporary files that have been created, restore configuration etc.
+			
+	* Script Locking
+
+			In the case where there can only be one instance for a script running at a time then it's important to ensure that there is adequate locking of the script. All scripts that need to ensure there is only only one instance running should create a lock file
+			
+			For example, define a lock file location and name is based on the PID, change the names to match your scripts name:
+					
++-----------------+
+			SCRIPT_LOCK_DIR=/tmp/script_name.lock 
+			SCRIPT_LOCK_PID_FILE=${SCRIPT_LOCK_DIR}/.script_pid
++------------------+
+
+			There should also be a lock and unlock function. The lock file will be created at the start of the script which checks for existing locks, i.e. another running instance.
+			
+			The following example prints to standard output using echo. Alter this to print to the appropriate log as necessary.
+			
+			
+			Example of function to create/check for a lock
+
++------------------------------------------+	
+
+### Function: getLock ###
+#
+#   Try to create a lock file 
+#  
+#	
+# Arguments:
+#       none
+# Return Values:
+#       0 for success
+#		1 for failure
+		
+getLock() {
+# Local vars local script_pid
+# Check for safe SCRIPT_LOCK_DIR setting
+if ! $ECHO "${SCRIPT_LOCK_DIR}" | ${GREP} "^/tmp/" >/dev/null; then
+        $ECHO "Error: Invalid SCRIPT_LOCK_DIR setting: [${SCRIPT_LOCK_DIR}]. Lock directory must be created under /tmp\n"
+        #exit 1
+        exit 0
+fi
+if [ ! -d "${SCRIPT_LOCK_DIR}" ]; then
+        $MKDIR -p ${SCRIPT_LOCK_DIR} 2> /dev/null
+fi
+# Lock FAILED - check for stale lockinfo " HC lock FAILED; checking for stale lock ..."
+MY_SCRIPT_pid=($$)
+$TOUCH ${SCRIPT_LOCK_PID_FILE}
+SCRIPT_pid=`(${CAT} ${SCRIPT_LOCK_PID_FILE})`
+$ECHO " Lock PID file contains: ${SCRIPT_pid}"
+if [ -n "${SCRIPT_pid}" ]; then
+         $ECHO "Current pid ${SCRIPT_pid} , my pid ${MY_SCRIPT_pid} "
+         if [ "${MY_SCRIPT_pid}" ==  "${SCRIPT_pid}" ]; then
+          $ECHO ${MY_SCRIPT_pid} > ${SCRIPT_LOCK_PID_FILE}
+          $ECHO "I locked the file"
+          LOCKED=0
+         else
+         # Wait a bit before assuming stale lock i.e. a script
+         # was interrupted after acquiring the lock but before
+         # it could install the interupt handler to remove it
+         sleep 5
+         fi
+# Check for active process with discovered pid
+         $KILL -0 ${SCRIPT_pid} 2> /dev/null
+         if [ "${?}" = "0" ]; then
+                # Another active process already has the lock
+                $ECHO "Error: Another process with PID [${SCRIPT_pid}] has locked this admin function. Please try later.\n"
+                LOCKED=1
+                return 1
+         else
+                # Remove stale lock
+                [ -d "${SCRIPT_LOCK_DIR}" ] && $CAT /dev/null > ${SCRIPT_LOCK_PID_FILE}
+                echo " Removed stale HC lock."
+                $ECHO "${MY_SCRIPT_pid}" > ${SCRIPT_LOCK_PID_FILE}
+                LOCKED=0
+         fi
+else
+        $ECHO "My value set in current lock file, locking"
+        $ECHO "${MY_SCRIPT_pid}" > ${SCRIPT_LOCK_PID_FILE}
+        LOCKED=0
+fi
+# There is no active process with this pid - remove stale lock [ -d "${SCRIPT_LOCK_DIR}" ] && $RM -rf ${SCRIPT_LOCK_DIR} echo " No active process with PID [$SCRIPT_pid]; Removed stale HC lock."
+# Try to lock again getHCLock
+}
+
++------------------------------------------+
+
+			The script should have a lock remove function and the cleanup function should remove the lock file.
+			
+			For example:
+			
++------------------------------------------+
+
+### Function: releaseLock ###
+#
+#   Try to remove a lock file on exit
+#  
+#	
+# Arguments:
+#       none
+# Return Values:
+#       0 for success
+#		1 for failure
+
+
+releaseLock() {
+# Check for safe SCRIPT_LOCK_DIR setting
+if ! $ECHO "${SCRIPT_LOCK_DIR}" | ${GREP} "^/tmp/" >/dev/null; then
+        $ECHO "Error:  Invalid SCRIPT_LOCK_DIR setting: [${SCRIPT_LOCK_DIR}]. Lock directory must be created under /tmp\n"
+
+        exit 0
+fi
+# Check lock exists
+if [ ! -d "${SCRIPT_LOCK_DIR}" ]; then
+       $ECHO " No lock to release."
+        LOCKED=0
+        return 0
+fi
+local SCRIPT_pid=$($CAT ${SCRIPT_LOCK_PID_FILE} 2>/dev/null)
+if [ -z "${SCRIPT_pid}" ]; then
+        # Wait a bit
+        sleep 5
+        local SCRIPT_pid=$(${CAT} ${SCRIPT_LOCK_PID_FILE} 2>/dev/null)
+fi
+# Decide lock is stale if still no pid
+if [ -z "${SCRIPT_pid}" ]; then
+        # Remove stale lock
+        [ -d "${SCRIPT_LOCK_DIR}" ] && $RM -rf ${SCRIPT_LOCK_DIR}
+       $ECHO " Removed stale HC lock."
+        LOCKED=0
+        return 0
+fi
+# Release only if this process has the lock
+if [ "${SCRIPT_pid}" = "$$" ]; then
+        # Release the lock
+        [ -d "${SCRIPT_LOCK_DIR}" ] && $RM -rf ${SCRIPT_LOCK_DIR}
+       $ECHO " Released HC lock [${SCRIPT_LOCK_DIR}]."
+        LOCKED=0
+        return 0
+fi
+# Not locked by this processinfo " This process [$$] tried to release a HC lock but process [$SCRIPT_pid] is the lock owner."
+LOCKED=1
+return 1
+}
+
++------------------------------------------+
+
+	* Script exit on interrupt
+	
+		The “trap” mechanism should be used in each script to trap interrupts such as “ctrl + c” , HUP etc…
+		
++------------------------------------------+		
+# Cleanup when script exits
+trap "cleanup_exit" EXIT
+
+# Cleanup when script is interrupted
+trap "cleanup" HUP INT QUIT TERM
++------------------------------------------+
+		
+		The functions will be implemented locally in each script. Those functions should handle any actions that need to be performed, such as calling the remove lock functions, logging the exit etc.
+		
+	* Checking return codes
+	
+		Every command that is executed that will return an exit code should be checked. 
+		
+		There should be no exceptions to this.
+
+		Don’t use if statements to check the return codes. Instead use && or || to take action on success or failure.
+	
+	* Checking user permissions
+	
+		Every script should check that the user running the script has adequate permissions to run the script.
+		
+		There should be no exceptions to this.
+
+		
+	* Command line arguments	
+		
+		All scripts should take all parameters, except for passwords, at the command line or from a comfiguration file where possible and avoid user interaction.
+		
+		After the check of permissions, command line arguments should be processed.
+		
+		The script should not perform any actions until command line arguments are processed and validated.
+
+		All command line arguments should be processed using “getopts”.
+		
+		If the situation where user confirmation is required to perform an action there should be a silent option, i.e. an extra argument that can be passed to the script that confirms the default action should be taken. This will aid test automation.
+		
+		
+	* Usage details
+	
+		Each script must have a usage function that displays the script usage using the “-h” command line argument. 
+		
+		The only exception is scripts that do not any command line arguments. 
+		
+	* Syntax error handling
+
+		No script should be throwing syntax errors when it is being executed. 
+		
+		To avoid this :
+		
+			Before checking in a script use the –n option, similar to lint, to check the script for syntax errors
+			
+			When checking variables, do not use:
+			
++-------------------------+
+[ $some_variable =”true”]
++-------------------------+
+
+			Instead use 
+
++-------------------------+		
+[ “$some_variable" = “true” ]
++-------------------------+
+			
+	* Avoid multiple if/else blocks
+	
+		Scripts should always take the quickest route to exit when performing conditional checks. For example, code like the following should not be used:
+
++-------------------------+		
+if [ -d /some/needed/directory]; then
+	###do what needs to be done
+else
+	cleanup “Directory not found, exiting “
+fi
++-------------------------+
+
+		Instead, the code should be structured in the following way:
+
++-------------------------+
+[ –d /some/needed/directory ] || cleanup “Needed directory not found “
+###continue on 
++-------------------------+
+
+
+			
+
+			
+	
+
+
+	

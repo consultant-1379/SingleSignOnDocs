@@ -1,0 +1,46 @@
+		----------------------------------
+				Upgrade Script Description
+		----------------------------------
+				Brian Gunning
+		-----------------------------------
+				2013-03-12
+
+SSO Failover Script - Interwork Description
+
+===================
+
+* Introduction
+
+	This script enables SSO to be failed over to the redundant instance in a failure and upgrade scenario. This script is configured as a 'monitorable' resource by Veritas Cluster Srver (VCS).
+
+* Purpose of Script
+
+	Failover is handled automatically by LITP when the fault/upgrade is on Apache but SSO also requires that Apache is failed over when the SSO JBoss is unavailable. That is, a n-way service group (SSO JBoss) forcing a 2n service group (Apache) to fail over because it is upgrading or becaue it has become unavailable.
+
+
+** Restrictions
+
+	None
+
+** Parameters
+
+	None
+
+** Note
+
+	If the script detects that LDAP is unavailable it does not failover the instance as it is likely that LDAP will also be unavailable from the other SSO instance thus forcing a constant failover of TOR until the issue is resolved. In this scenario, the script logs an error to the log.
+
+
+** Exit Codes
+
+
+*----------*----------------*----------------*
+| Exit Code| Description    | Comment		 |
+| 	 	   | 		        | 		         |
+*----------*----------------*----------------*
+| 0 	   | System OK  	| 		         |
+*----------*----------------*----------------*
+| 1 	   | System NOK 	| 		         |
+*----------*----------------*----------------*
+Exit Codes
+

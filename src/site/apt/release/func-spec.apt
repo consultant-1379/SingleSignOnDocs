@@ -1,0 +1,30 @@
+		----------------------------------
+		Functional Specification (Excerpt)
+		----------------------------------
+				Alex McAllister
+				---------------
+				   2012-10-30
+
+Functional Specification Chapter 4 - OpenAM Characteristics & Capabilities
+
+* Storage Capability
+
+	OpenAM has an initial storage footprint of roughly 100MB, including the core functionality, the web-based user interface and the command-line administration tools. As logging levels increase and logs are rotated, the number will fluctuate to GB's quickly if the logs, debug outputs and statistics are not properly maintained/archived
+
+* Performance
+
+	Since the main function of OpenAM is user identity and management, it's end user support capabilities need to scale to the size of the organisation in which it is being deployed. With a Java heap size of 3GB, 100,000 user sessions are possible
+
+* Capacity
+
+	FREJA 13.A will have an initial capacity requirement of 1,000 users
+
+* Usability
+
+* Reliability
+
+* Logging
+
+* Tracing
+
+* Instrumentation

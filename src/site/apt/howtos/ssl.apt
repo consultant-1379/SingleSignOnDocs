@@ -1,0 +1,242 @@
+		-----------------------------------------
+                        SSL in SSO - how it works
+		-----------------------------------------
+			Dobromir Petrov
+			---------------
+			  2013-06-25
+
+SSL in SSO - how it works
+
+=========================================
+
+        This documentation is a detailed description of what SSL is and how it is expected to work in SSO for TOR. 
+
+* What is SSL and what are Certificates?
+
+ SSL is an Application Layer protocol that uses a third party, a Certificate Authority (CA), to identify one end or both ends of the transactions. SSL makes use of what is 
+ known as asymmetric cryptography, commonly referred to as public key cryptography (PKI). With public key cryptography, two keys are created, one public, one private. 
+ Anything encrypted with either key can only be decrypted with its corresponding key. This is in short how it works.
+
+        [[1]] A browser requests a secure page (usually https://).
+
+        [[2]]The web server sends its public key with its certificate. 
+
+        [[3]]The browser checks that the certificate was issued by a trusted party (usually a trusted root CA), that the certificate is still valid and that the certificate 
+        is related to the site contacted.
+
+        [[4]]The browser then uses the public key, to encrypt a random {{{https://en.wikipedia.org/wiki/Shared_secret}pre-master secret}} for the session and sends 
+        it to the server with the encrypted URL required as well as other encrypted http data.
+
+        [[5]]The web server decrypts the pre-master secret using its private key and uses pre-master secret to decrypt the URL and http data. Both the client and the 
+        server use the master secret to generate the session keys, which are symmetric keys used to encrypt and decrypt information exchanged during the SSL session and to 
+        verify its integrity (that is, to detect any changes in the data between the time it was sent and the time it is received over the SSL connection).
+
+        [[6]]The web server sends back the requested html document and http data encrypted with the symmetric key.
+
+        [[7]]The browser decrypts the http data and html document using the symmetric key and displays the information.
+
+        []
+
+[../images/ssl_handshak.gif]
+
+         
+
+* SSL connections for TOR.
+
+        There are four unique SSL connections in SSO for TOR.        
+
+        [[1]]Browser to Apache;
+
+        [[2]]Policy Agent to SSO JBoss;
+
+        [[3]]Apache to SSO JBoss:         
+
+        [[4]]JBoss to LDAP;
+        
+    For each of the above connections the first entity is the SSL client and the second is the SSL server and there must be a unique private key per connection. The private key is 
+    used to create a certificate request file (.csr) that is submitted to the Certificate Authority which must recognize the Applicant and sign its certificate. When 
+    the certificate is issued it will be used by the client or the server that is why the usage parameter (extendedKeyUsage) of the certificate must be explicitly defined. 
+    This is required because that way certificates cannot be misused. To achieve this, two certificate requests must be generated from the same private key i.e. one for the 
+    client and one for the server usage. 
+
+* SSL certificates usage and private keys.
+
+        * For connection 1 there is a need for only one server certificate, because Apache will produce a client certificate for the browser on incoming request.
+
+        * For connection 2 there is a need for two certs generated, one for Policy Agent as SSL client and one for JBoss as SSl server.
+
+        * For connection 3 there is a need for two certs generated, one for Apache as SSl client and one for JBoss as SSL server.        
+
+        * For connection 4 there is a need for one client certificate to be issued as SSO does not manage the server site on this connection.
+
+
+* How SSL flow control works for TOR.
+
+        * <<Browser to Apache>>:  This connection secures the traffic between the browser and Apache web server. When the user clicks on a bookmark the browser will send a 
+        https request to Apache. The server will send back the certificate and its public key that is configured to be loaded from <<</etc/pki/tls/certs/ssoserverapache.crt>>>. 
+        Apache will also need the private key that was used to generate the certificate located at <<</etc/pki/tls/private/ssoserverapache.key>>>. The configuration file 
+        that contains this information is <<</etc/httpd/conf.d/40_ftsso_main.conf>>>. The browser will use the public key in the provided certificate to encrypt the data 
+        sent to server. The server is going to need the private key in order to be able to decrypt the client's data. 
+       
+        * <<Policy Agent to SSO JBoss>>: Initiated by the browser, the request to the protected resources is intercepted by the PA that must contact JBoss SSO server to verify if the current
+        request has a valid session or needs the user's credentials. In this communication PA sends https request to JBoss as SSL client and JBoss is the SSL server. 
+        PA has the client certificate already inserted in its key-store located in <<</opt/ericsson/sso/web_agents/apache22_agent/certs/>>> folder. Typically the key-store 
+        is comprised of 3 files: <<<cert8.db, key3.db andsecmod.db>>> . SSO JBoss server also has its own key-store that has both the private key and the certificate inserted 
+        which is located at <<</usr/java/default/jre/lib/security/cacerts>>> and the JBoss configuration file that defines the SSL setup is at 
+        <<</home/jboss/SSO_su_X_jee_instance/standalone/configuration/standalone-sso.xml>>>.
+
+        * <<Apache to SSO JBoss>>: Depending of the outcome of the communication 2 the PA must either provide the login page to the user or the requested secured resource. If there is no
+        valid session for this request the login page must be returned to the client where Apache is going to use the rewrite rule and will be forced to become the SSL client 
+        towards SSO JBoss server. The certificate used here is the same as the one described in connection 1, but the private key and certificate are inserted in JBoss key-store
+        under different alias name in the same key-store at <<</usr/java/default/jre/lib/security/cacerts>>>. 
+
+        * <<JBoss to LDAP>>: When the user submits hers/his credentials, the PA then forwards them to JBoss SSO server which furthers them on to LDAP SSL server to allow or 
+        deny access. The connection between SSO JBoss and LDAP server must also be encrypted. The LDAP SSL certificate <<<rootca.cer>>> could be found in the shared folder
+        <<</ericsson/tor/data/certificates/sso/>>> but it is also inserted in JBoss key-store used in 3 and 2 under different alias.
+
+
+
+* SSO Requirements for certs/private key for 1.017.
+
+        * <<<ssoserverapache.key>>>
+
+        * <<<ssoserverapache.crt>>> \-\> Common Name (CN) must be FQDN of apache, e.g., CN=atrcxb2748-10.athtem.eei.ericsson.se
+
+        * <<<ssoserverjboss.key>>>
+
+        * <<<ssoserverjboss.crt>>> \-\> Common Name (CN) must be SSO alias of JBoss, e.g., CN=sso.atrcxb2748-10.athtem.eei.ericsson.se
+
+        * <<<rootca.cer>>>
+
+        []
+
+        [[1]]Both private keys need to be 2048 bits long, encryption algorithm should be SHA256.
+
+        [[2]]Certs must be x509 standard compliant.
+
+        [[3]]The location for the certs and private keys is: <<</ericsson/tor/data/certificates/sso/>>> on the SC-1 and SC-2 prior to installation of SSO.
+
+        [[4]]The common name(CN) for the first cert must be using the  FQDN of the apache server (i.e. atrcxb2748-10.athtem.eei.ericsson.se).
+
+        [[5]]The name of the cert and key for 4 should be <<<ssoserverapache.crt>>> and <<<ssoserverapache.key>>>
+
+        [[6]]The common name(CN) for the second cert must be using the alias of the openAM server (i.e sso.atrcxb2748-10.athtem.eei.ericsson.se).
+
+        [[7]]The name of the cert and key for 6 should be <<<ssoserverjboss.crt>>> and <<<ssoserverjboss.key>>>
+
+        [[8]]Folder <<</ericsson/tor/data/certificates/sso/>>> should have SELinux context of <<<cert_t>>>.
+
+        []
+
+* SSO and self-signed certificates.
+      
+      A self-signed certificate is an identity certificate that is signed by the same entity whose identity it certifies. The motivation for using self-signed 
+      certificates is to facilitate automatic install of SSO without the need to wait for OMSAS. After testing is complete the fake certificates must be updated with 
+      proper ones. The update process is explained later in this documentation.
+
+
+* Structure of a X.509 certificate.
+
+ The structure of an X.509 v3 digital certificate is as follows:
+
+        * Certificate
+
+                * Version
+
+                * Serial Number
+
+                * Algorithm ID
+
+                * Issuer
+
+                * Validity
+
+                        * Not Before
+
+                        * Not After
+
+                * Subject
+
+                * Subject Public Key Info
+
+                        * Public Key Algorithm
+
+                        * Subject Public Key
+
+                * Issuer Unique Identifier (optional)
+
+                * Subject Unique Identifier (optional)
+
+                * Extensions (optional)
+
+                        * .....
+
+        * Certificate Signature Algorithm
+
+        * Certificate Signature
+
+ Note: For more details about X.509 standard please read the following document: {{{http://en.wikipedia.org/wiki/X.509}X.509}}
+
+* Certificate Update Procedure
+
+    Once valid certificates are available from OMSAS, they should be made available to the peer nodes (SC-1, SC-2) at the location <<</ericsson/tor/data/certificates/sso/>>>. The following files should be updated:
+
+    * <<ssoserverapache.crt>>
+
+    * <<ssoserverapache.key>>
+
+    * <<ssoserverjboss.crt>>
+
+    * <<ssoserverjboss.key>>
+
+    []
+
+    If the root CA certificate has been updated, it should be placed here as well with the following filename
+
+    * <<rootca.cer>>
+
+    []
+
+    Once these files have been updated, run these scripts from either node
+
+    * <<</opt/ericsson/sso/bin/refresh_apache_certs.sh>>>
+
+    * <<</opt/ericsson/sso/bin/sso-safe-restart.sh>>>
+
+    []
+
+    A more {{{/release/upgrade-certificates.html}detailed explanation}} is available.
+
+* Glossary
+        
+        * {{{http://technet.microsoft.com/en-us/library/cc781476(v=ws.10).aspx}Symmetric Key}} - Is a cryptographic mechanism in which both entities are using the same 
+        key to encrypt/decrypt data.
+
+        * {{{http://technet.microsoft.com/en-us/library/cc781476(v=ws.10).aspx}Asymmetric Key}} - Is a cryptographic mechanism in which both entities are using different 
+        keys to encrypt/decrypt data (i.e client is decrypting with the corresponding public key given by the server and the server is decrypting data using the private key).
+
+        * {{{http://www.techopedia.com/definition/16135/private-key}Private key}} - The private key is a file with extension .key which is provided by configuration to the 
+        SSL server to decrypt messages that were encrypted by using its the corresponding public key. 
+
+        * {{{https://www.google.ie/search?q=SSL+Public+key&oq=SSL+Public+key&aqs=chrome.0.57j0l3j62l2.1398j0&sourceid=chrome&ie=UTF-8#q=public+key&tbs=dfn:1&tbo=u&sa=X&ei=SbPJUduGB8a4hAfR_YDQCQ&ved=0CCwQkQ4&bav=on.2,or.r_cp.r_qf.&fp=a3a437acad929614&biw=1527&bih=850}Public key}} - 
+        A cryptographic key that can be obtained and used by anyone to encrypt messages intended for a particular recipient, such that the encrypted messages can be deciphered 
+        only by using a second key that is known only to the recipient (the private key).
+
+        * {{{http://en.wikipedia.org/wiki/Ssl_certificate}SSL Certificate}} - Certificate is an electronic document which uses a digital signature to bind together a public 
+        key with an identity consisting of an email address, company, location etc.
+
+        * {{{http://en.wikipedia.org/wiki/Certificate_authority}Certificate authority (CA)}} - CA an official entity that issues digital certificates to other companies to verify 
+        their authenticity.
+
+        * {{{http://en.wikipedia.org/wiki/Certificate_signing_request}Certificate Signing Request (CSR)}} - CSR is a request ( xxxx.csr file ) sent from an applicant to a 
+        certificate authority in order to apply for a digital identity certificate. 
+
+        * {{{http://www.entrust.net/ssl-certificate-glossary.htm#common-name}Common Name (CN)}}  - Before you can enroll for a SSL certificate, you must generate a CSR 
+        from your webserver software. During the creation of the CSR, the following fields must be entered: Organization (O), Organizational Unit (OU), Country (C), State (S), 
+        Locality (L), and Common Name (CN). The Common Name is typically composed of Host + Domain Name and will look like "www.yoursite.com" or "yoursite.com". 
+        <<SSL Server Certificates are specific to the Common Name that they have been issued to at the Host level. In other words both client and server must use 
+        certificates with the same CN.>> 
+
+
+ Some of the useful tools that might be used for testing are {{{http://www.tcpdump.org/tcpdump_man.html}tcpdump}}, {{{http://www.wireshark.org/}Wireshark}}, 
+ {{{http://www.openssl.org/}openssl}} and {{{http://www.centos.org/docs/5/html/CDS/ag/8.0/Managing_SSL-Using_certutil.html}certutil}} .

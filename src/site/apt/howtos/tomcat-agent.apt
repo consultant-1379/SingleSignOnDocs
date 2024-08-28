@@ -1,0 +1,200 @@
+		---------------------------------------------------------------------
+		OpenAM Policy Agent Installation and Configuration for Tomcat (6.0.x)
+		---------------------------------------------------------------------
+							Alex McAllister
+							---------------
+							   2012-10-16
+
+OpenAM Policy Agent Installation and Configuration for Tomcat (6.0.x)
+
+=========================================================
+
+	A "Policy Agent" is how OpenAM access policies (authorisation) are enforced on various JEE/web containers, allowing or denying access
+	to resources (e.g., URI patterns) based on user credentials, membership of groups and various other criteria. Here
+	we describe how to configure Tomcat to protect resources and permit access based on group membership (defined on
+	an OpenAM instance acting as Identity Provider).
+
+* Scope
+
+	This document describes how to install and configure a J2EE Policy Agent from OpenAM for the Apache Tomcat web container.
+
+* Pre-requisites
+
+	This document assumes that the following are installed and configured:
+
+	* OpenAM v10.0.0
+
+	* Apache Tomcat v6.0.35
+
+* Overview
+
+	In summary, the process consists of these steps:
+
+	[[1]]Define a new Agent profile on OpenAM
+
+	[[2]]Stop the JEE container
+
+	[[3]]Run the Policy Agent install script
+
+	[[4]]Restart the container
+
+	[[5]]Define {{{http://openam.forgerock.org/openam-documentation/openam-doc-source/doc/admin-guide/index/chap-authz-policy.html}policy rules}} for your agent
+
+	[]
+
+	After these steps are complete, Policy Rules can be delcared in OpenAM and they will be updated automatically without restarting the application's container.
+
+* Agent Profile
+
+	Before a Policy Agent can be installed on a container, its profile must first be created in OpenAM. Agent profiles are logically separated by realms. When logged into OpenAM as <<amAdmin>>, navigate to <<<Access Control>>> -\> <<</ (Your Realm)>>> -\> <<<Agents>>> -\> <<<J2EE>>> and click <<New>> under <<Agents>>. This page asks for the following:
+
+	* <<Name>>: Each agent profile must have a unique name
+
+	* <<Password>>: This password must be remembered and provided later in the install script
+
+	* <<Configuration>>: The location where the configuration will be stored - centrally on the OpenAM instance, or locally on the application's container
+
+	* <<Server URL>>: The location of the OpenAM server. Port numbers are a must!
+
+	* <<Agent URL>>: The URI of the container where the Policy Agent will be installed. Port numbers are a must!
+
+	[]
+
+	After clicking on "Create", we can install the agent onto the application's container
+
+* Policy Agent Install Script
+
+	* Download the latest <<STABLE>> version of the {{{http://www.forgerock.org/openam.html}Policy Agent for Tomcat}}
+
+	* Decide where to extract the archive as this is will be the install directory (the configuration HOME for the Policy Agent)
+
+	* Stop the instance of Tomcat, e.g., <<<C:\env\tomcat\bin\shutdown.bat>>>. The Operating system in this example is Windows, for Linux run <<</path/to/tomcat/bin/shutdown.sh>>>
+
+	* Once the Agent Profile is defined in the OpenAM server, run (location is an example) <<<C:\env\j2ee_agents\tomcat_v6_agent\bin\agentadmin.bat --install>>>
+
+	[]
+
+* Notes
+
+	The install script will, by default, make backups of <<<%CATALINA_HOME%\conf\server.xml>>>, <<<%CATALINA_HOME%\conf\web.xml>>>, and the deployment descriptors of every webapp already deployed.
+
+	The option to install the agent globally or not has no effect (on Windows at least) - it will install it globally regardless of your input. Some manual configuration is required to make the agent operate on a more granular level (i.e., for individual webapps). See Appendix A below.
+
+* Sample Output of Successfull Installation
+
++---------------------------------------------------------------------------------------------------------+
+SUMMARY OF YOUR RESPONSES
+
+
+Tomcat Server Config Directory : c:/env/tomcat/conf
+OpenSSO server URL : http://atclvm589.athtem.eei.ericsson.se:80/openam
+$CATALINA_HOME environment variable : c:/env/tomcat
+Tomcat global web.xml filter install : true
+Agent URL : http://e7e4115b49bbaa.eemea.ericsson.se:8080/policyapp
+Agent Profile name : testAgent
+Agent Profile Password file name : C:\env\j2ee_agents\tomcat_v6_agent\config\password.txt
+
+ -----------------------------------------------------
+
+Updating the C:\env\tomcat/bin/setenv.bat script with the Agent
+configuration JVM option ...DONE.
+DONE.
+
+Creating directory layout and configuring Agent file for Agent_002
+instance ...DONE.
+
+Reading data from file
+C:\env\j2ee_agents\tomcat_v6_agent\config\password.txt and
+encrypting it ...DONE.
+
+Generating audit log file name ...DONE.
+
+Creating tag swapped OpenSSOAgentBootstrap.properties file for instance
+Agent_002 ...DONE.
+
+Creating a backup for file c:/env/tomcat/conf/server.xml ...DONE.
+
+Creating a backup for file c:/env/tomcat/conf/web.xml ...DONE.
+
+Adding OpenSSO Tomcat Agent Realm to Server XML file :
+c:/env/tomcat/conf/server.xml ...DONE.
+
+Adding filter to Global deployment descriptor file :
+c:/env/tomcat/conf/web.xml ...DONE.
+
+Adding OpenSSO Tomcat Agent Filter and Form login authentication to
+selected Web applications ...DONE.
+
+ -----------------------------------------------------
+
+SUMMARY OF AGENT INSTALLATION
+Agent instance name: Agent_002
+Agent Bootstrap file location:
+C:/env/j2ee_agents/tomcat_v6_agent/Agent_002/config/OpenSSOAgentBootstrap.properties
+Agent Configuration file location
+C:/env/j2ee_agents/tomcat_v6_agent/Agent_002/config/OpenSSOAgentConfiguration.properties
+Agent Audit directory location:
+C:/env/j2ee_agents/tomcat_v6_agent/Agent_002/logs/audit
+Agent Debug directory location:
+C:/env/j2ee_agents/tomcat_v6_agent/Agent_002/logs/debug
+
+
+Install log file location:
+C:/env/j2ee_agents/tomcat_v6_agent/installer-logs/audit/install.log
+
+Thank you for using OpenSSO Policy Agent
++---------------------------------------------------------------------------------------------------------+
+
+* Confirm Installation
+
+	If you left the Realm and the filter as is in the global config, you can verify the installation by browsing to the root of your Tomcat deployment <<<http://yourhost:8080>>>). You should be redirected to the OpenAM login screen. This means that the configuration is working.
+
+* Uninstall
+
+	This process is straightforward - simply run <<<C:\env\j2ee_agents\tomcat_v6_agent\bin\agentadmin.bat --uninstall>>>. This will revert any configuration changes made to Tomcat during the installation process (not any changes you made to individual webapps).
+
+* Policy Rules
+
+	This is how OpenAM performs authorisation and is outside the scope of this document. However without policy rules, everyone is unauthorised! Have a read of the {{{http://openam.forgerock.org/openam-documentation/openam-doc-source/doc/admin-guide/index/chap-authz-policy.html}documentation}} to get an idea.
+
+======================================================================================================================================
+
+* Appendix A - Configure Tomcat/Policy Agent to Operate on Individual Webapps
+
+	By examining the changes made by the install script to Tomcat's config files, we can revert the global changes and re-apply them manually to any individual webapp. The script adds a <<<\<Realm\>>>> to <<<%CATALINA_HOME%/conf/server.xml>>> which will affect the whole container. Two options are:
+
+	* Move this Realm definition to your webapp's <<<META-INF/context.xml>>>:
+
++--------+
+<Context>
+    <Realm className="com.sun.identity.agents.tomcat.v6.AmTomcatRealm" debug="99" />
+</Context>
++--------+
+
+	* Move the definition (say for <<mywebapp>>) to <<<%CATALINA_HOME%/conf/Catalina/localhost/mywebapp.xml>>>. This is what happens anyway be delcaring it in the META-INF folder, but since context.xml is Tomcat-specific, you can keep your webapp that bit more container-independent this way. <<<\<Context\>>>> element is as above verbatim.
+
+	[]
+
+	The other change made is the the gloabl web.xml file in <<<%CATALINA_HOME%/conf/web.xml>>>. It adds a filter to capture every request and forward them on to OpenAM.
+
++----------------------+
+<filter>
+    <filter-name>Agent</filter-name>
+    <display-name>Agent</display-name>
+    <description>OpenAM Tomcat Policy Agent Filter</description>
+    <filter-class>com.sun.identity.agents.filter.AmAgentFilter</filter-class>
+</filter>
+
+<filter-mapping>
+    <filter-name>Agent</filter-name>
+    <url-pattern>/*</url-pattern>
+    <dispatcher>REQUEST</dispatcher>
+    <dispatcher>INCLUDE</dispatcher>
+    <dispatcher>FORWARD</dispatcher>
+    <dispatcher>ERROR</dispatcher>
+</filter-mapping>
++----------------------+
+
+	Simply remove the filter definition from the global deployment descriptor and place it the one of the webapp(s) in question.
+
+	This granular configuration may not be needed but is possible with minimal changes to the Policy Agent setup

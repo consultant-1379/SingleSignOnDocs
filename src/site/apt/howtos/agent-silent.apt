@@ -1,0 +1,72 @@
+		-----------------------------------------
+		OpenAM Policy Agent - Silent Installation
+		-----------------------------------------
+					Alex McAllister
+					---------------
+					  2012-10-26
+
+OpenAM Policy Agent - Silent Installation
+
+=========================================
+
+	The OpenAM Policy Agent installation process can be automated somewhat by providing a "response file", that is, a list of variables that map to the questions posed by the installation script. Remember the summary of responses from this previous installation (Tomcat 6.0.x on Windows):
+
++---------------------------------+
+Tomcat Server Config Directory : c:/env/tomcat/conf
+OpenSSO server URL : http://atclvm589.athtem.eei.ericsson.se:80/openam
+$CATALINA_HOME environment variable : c:/env/tomcat
+Tomcat global web.xml filter install : true
+Agent URL : http://e7e4115b49bbaa.eemea.ericsson.se:8080/policyapp
+Agent Profile name : testAgent
+Agent Profile Password file name : C:\env\j2ee_agents\tomcat_v6_agent\config\password.txt
++---------------------------------+
+
+	The best way to get the proper format of the response file is to run an installation script as normal with the following options:
+
++---------------------------------+
+/path/to/policy-agent/bin/agentadmin --install --saveResponse agent-install.resp
++---------------------------------+
+
+	The argument following <<<--saveResponse>>> can be any filename.
+
+	Then to automate the installation process, the following command can be issued (after configuring the relevant options in your response file):
+
++---------------------------------+
+/path/to/policy-agent/bin/agentadmin --install --useResponse agent-install.resp
++---------------------------------+
+
+	The format of the response file will be different depending on the type of agent (Web, J2EE, etc), and also the container vendor (Tomcat, Glassfish, etc). We will cover example response files for Apache httpd 2.2, Tomcat 6.0.x and Glassfish v3.
+
+===========================================
+
+* Apache httpd 2.2 (Linux)
+
+	Sample response file for the Apache httpd 2.2 Policy Agent (64-bit Linux version)
+
++---------------------------------+
+# Agent User Response File
+CONFIG_DIR= /etc/httpd/conf
+AM_SERVER_URL= http://atclvm589.athtem.eei.ericsson.se:80/openam
+AGENT_URL= http://atclvm590.athtem.eei.ericsson.se:80
+AGENT_PROFILE_NAME= tor-web-agent
+AGENT_PASSWORD_FILE= /tmp/pass.txt
++---------------------------------+
+
+	CONFIG_DIR refers to the directory containing the main <<httpd.conf>> file.
+	
+	The file <<</tmp/pass.txt>>> must exist (albeit at any location you wish) and must contain the Agent Profile password that you defined when setting up the Agent profile in OpenAM.
+
+* Tomcat 6.0.x
+
++---------------------------------+
+# Agent User Response File
+CONFIG_DIR= /var/opt/tomcat/conf
+AM_SERVER_URL= http://atclvm589.athtem.eei.ericsson.se:80/openam
+CATALINA_HOME= /var/opt/tomcat
+INSTALL_GLOBAL_WEB_XML= true
+AGENT_URL= http://e7e4115b49bbaa.eemea.ericsson.se:8080/agentapp
+AGENT_PROFILE_NAME= Dummy
+AGENT_PASSWORD_FILE= /var/tmp/pass.txt
++---------------------------------+
+
+* Glassfish v3

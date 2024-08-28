@@ -1,0 +1,48 @@
+		----------------------------------
+				Security Certificate Update Guide
+		----------------------------------
+				Alex McAllister
+		-----------------------------------
+				2013-06-24
+
+Upgrade Procedure for Single Sign On Certificates
+
+=====================
+
+* Context Description
+
+	This task outlines the steps required to update the security certificates needed to secure SSO communications. Updated certificates are the root Certificate Authority certificate (CA) for securing connections between SSO and the COM-INF LDAP user directory, the SSO server (JBoss) HTTPS certificate for securing login information and the Apache web server certificate to secure all information between a users browser and the TOR Launcher
+
+* Prerequisites
+
+	* SSO is installed on nodes and configured with HTTPS for TOR connections (either using self-signed certificates or certificates issued by OMSAS that need to be updated), and an existing root CA certificate for LDAP connections (issued by OMSAS)
+
+	* User has root access to the peer nodes
+
+* Expected Result
+
+	SSO certificates are updated to ones issued from OMSAS.
+
+* Steps
+
+	The scripts listed below need root access to execute, but can be run from either node
+
+	[[1]] Replace the following files with new ones generated from OMSAS (preserving the current filenames)
+
+		* /ericsson/tor/data/certificates/sso/rootca.cer (stored on OMSAS as /opt/ericsson/csa/certs/DSCertCA.pem)
+
+		* /ericsson/tor/data/certificates/sso/ssoserverjboss.crt
+
+		* /ericsson/tor/data/certificates/sso/ssoserverjboss.key
+
+		* /ericsson/tor/data/certificates/sso/ssoserverapache.crt
+
+		* /ericsson/tor/data/certificates/sso/ssoserverapache.key
+
+	[[2]] Run the script /opt/ericsson/sso/bin/refresh_certs.sh
+
+		* Returns 'Certificate successfully updated. Restart of Apache is required on both nodes before configuration will take effect' on success
+
+	[[3]] Run the script /opt/ericsson/sso/bin/sso-safe-restart.sh
+
+		* Returns 'Safe restart of SSO instances complete' on success

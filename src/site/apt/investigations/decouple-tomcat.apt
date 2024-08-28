@@ -1,0 +1,65 @@
+	-------------------------------------------------------------
+	De-coupling Authentication and Authorisation in Apache Tomcat
+	-------------------------------------------------------------
+	Alex McAllister
+
+De-coupling Authentication and Authorisation in Apache Tomcat
+
+==========================================================
+
+* Scope
+
+	This document is not a how-to guide for installing or configuring the technologies listed below. It documents an investigative task as part of the Single Sign On proof of concept (POC).
+
+* Goal
+
+	The task was to investigate the possibility of true separation of authentication and authorisation using the standard Tomcat security module implementations and the <<AmTomcatRealm>> provided by the OpenAM policy agent for Tomcat.
+
+* Requirements
+
+** Summary
+
+	We would like to modify the security of a resource (web application) running in Tomcat by replacing the <<authentication>> mechanism with the OpenAM policy agent and Identity Provider. At the same time, we would like to keep the application's existing <<authorisation>> mechanism. For This investigation, the application's current security is be configured on an existing LDAP server, i.e., separate from the LDAP server that is configured for OpenAM.
+
+** Use Case
+
+	[[1]] User attempts to access a protected legacy web application.
+
+	[[2]] No OpenAM session exists, so the policy agent redirects to the Identity Provider's login screen.
+
+	[[3]] Upon successful authentication, a seperate authorisation process takes place using the application's existing LDAP server to retrieve roles.
+
+	[[4]] Application's existing security constraints (say in <web.xml>) are applied.
+
+
+* Technologies
+
+	* Apache Tomcat v6.0.35
+
+	* OpenAM v10.0.0
+
+	* Policy Agent (Tomcat) v3.0-ER2
+
+* Possibilities
+
+** Combined Realm
+	
+	Tomcat has the notion of a "combined" security {{{http://tomcat.apache.org/tomcat-6.0-doc/realm-howto.html#What_is_a_Realm?}realm}} where 2 or more realms can be configured in a chain such that if one authentication method fails, the next one is attempted and so on until one succeeds. If one succeeds none of the remaining realms are attempted. However it is not possible to pick and choose the authentication and authorisation mechanisms of each - that is to say, use password stacking similar to JBoss security domains which allow just this functionality. In Tomcat, the authorisation (if desired) must be applied in the same realm. More detailed info on combined realms is available from the {{{http://tomcat.apache.org/tomcat-6.0-doc/config/realm.html}Apache Tomcat documentation}}
+
+** 3PP Open Source Libraries
+
+	There exists some open source libraries that implement a JAAS <<LoginModule>> that allows for this password stacking functionality. One example is {{{http://code.google.com/p/vt-middleware/wiki/vtldapJAAS}vt-middleware}} which is acutally used by the Shibboleth Identity Provider. However, this stacking only exists between each individual LoginModule within this custom JAAS realm. At the time of writing, there exists no OpenAM implementation of a JAAS LoginModule that could be used with these libraries.
+
+	After it became apparent that the desired behaviour was not possible with standard modules, the focus was turned back to OpenAM and the Policy Agent. The open source community for this 3PP is quite active and came up with the following solutions.
+
+** Custom <AmTomcatRealm>
+	
+	This would involve extending the <<<com.sun.identity.agents.tomcat.v6.AmTomcatRealm>>> class so that the <<<authenticate()>>> method could be overridden. In the existing method, the credentials are verified, a list of roles (space delimited string) is constructed from the OpenAM policy definitions and a new Principal object is created. The new class could verify the credentials by reusing this code, but would have to construct the list of roles some other way. This might involve opening a connection to a separate LDAP server, searching for the user, retreiving the list of roles/groups, construct the list, safely close the conenction to LDAP and create the Principal object.
+
+** Privileged Attributes Mapping
+
+	If an application has security constraints defined in its deployment descriptor that are unknown to the new OpenAM/LDAP configuration, mappings can be defined under each agent profile in OpenAM to link these legacy authorisation directives with current user/group definitions. This has the result that the legacy application's <<<\<security-contstraint\>>>> definitions in web.xml (or programmatic security definitions like <<<request.isUserInRole("roleName")>>> ) can remain unchanged.
+
+* Conclusion
+
+	De-coupling authorisation and authentication is a less than trivial matter in Tomcat, and best acheived through implementing a custom LoginModule or Tomcat Realm. Without implementing one of these to suit our needs (and possibly ending up with a one-off, non-reusable solution), the easiest alternative while not optimal is the Privileged Attributes Mapping method.

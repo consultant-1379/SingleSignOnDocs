@@ -1,0 +1,240 @@
+		---------------------------------------------------------------
+		Installing OpenAM and Performing Initial Configuration
+		---------------------------------------------------------------
+		---------------------------------------------------------------
+								2012-10-12
+
+Installing and Configuring OpenAM as an Identity Provider (IdP)
+
+========================================================
+
+* Scope
+
+	This document shows the steps involved in installing the OpenAM Single Sign On platform on a JBoss container deployed on a minimal CentOS Linux system.
+
+* Requirements
+
+	The following are assumed to be installed and configured:
+
+	* CentOS release 6.3 (Final) x86_64 GNU/Linux
+
+	* JDK 1.6+
+
+	* JBoss EAP 6
+
+* Overview
+
+	Here are the main steps that will be documented here:
+
+	[[1]] Prepare JBoss container
+
+	[[2]] Install an LDAP server (OpenDJ Express)
+
+	[[3]] Install OpenAM
+
+	[[4]] Configure OpenAM for initial usage
+
+* JBoss Preperation
+
+	OpenAM comes with web service and rest service libraries as part of the bundle which will conflict with those of JBoss. Two options are to remove the jars (webservices-rt.jar for one) that conflict with {{{http://paulmorris.drupalgardens.com/content/introduction-openam-restful-api}untested consequences}}, or disable the offending modules in JBoss itself. Since it's unlikely that this instance of JBoss will be used for anything else other than OpenAM, we'll do the latter.
+
+	First, make a backup of the modules.xml and standalone.xml files (if running in standalone mode). This is not specific to this particular installation, just always a good idea!
+
++-------------------+
+cd /path/to/jboss
+cp modules/sun/jdk/main/module.xml modules/sun/jdk/main/module.xml.bak
+cp standalone/configuration/standalone.xml standalone/configuration/standalone.xml.bak
++-------------------+
+
+	Add the following line to <</path/to/jboss/modules/sun/jdk/main/module.xml>> <<<paths>>> element:
+
++-----------------+
+<path name="sun/security/x509"/>
++-----------------+
+
+	Remove the following from <<</path/to/jboss/standalone/configuration/standalone.xml>>>
+
++-----------------+
+<extension module="org.jboss.as.jaxrs"/>
+...
+<extension module="org.jboss.as.webservices"/>
+ 
+...
+<subsystem xmlns="urn:jboss:domain:jaxrs:1.0"/>
+ 
+...
+ 
+<subsystem xmlns="urn:jboss:domain:webservices:1.1">
+    ...
+</subsystem>
++-----------------+
+
+	You'll have to restart the JBoss server for these changes to take effect. This command assumes your JBoss instance is installed as an <<</etc/init.d>>> service
+
++-----------------+
+service jboss-as restart
++-----------------+
+
+	You may have to run the command-line shutdown script otherwise:
+
++----------------------+
+/path/to/jboss/bin/jboss-admin.sh --connect command=:shutdown
++----------------------+
+
+* LDAP Server Installation
+
+	OpenAM allows you to configure a number of different implementations but seems to favour OpenDJ (it bundles it as a demo user store and configuration store). At the time of writing, the latest stable version is {{{http://download.forgerock.org/downloads/opendj/2.5.0-Xpress1/OpenDJ-2.5.0-Xpress1.zip}OpenDJ 2.5.0-Xpress1}}. The installation instructions at {{{http://opendj.forgerock.org/doc/install-guide/index.html#chap-install-cli}Forgerock's site}} are straightforward enough and should present no problems, but here's the salient points anyway:
+
+	* Download and extract the archive (link above)
+
+	* Move/copy to the desired installation location
+
+	* Make symbolic link for convenience
+
+	* Run the startup script
+
+	[]
+
+	<<N.B.>> Depending on your terminal bindings, the scripts above don't take too kindly to Backsjd^H^Hpaces. Any mistakes and you'll have to cancel the script, run the <<</path/to/opendj/uninstall>>> script, empty the rest of the directory, re-extract the archive and go again!. Be warned...
+	
++---------------------------+
+cd /tmp
+wget http://download.forgerock.org/downloads/opendj/2.5.0-Xpress1/OpenDJ-2.5.0-Xpress1.zip
+unzip OpenDJ-2.5.0-Xpress1.zip					# extract the archive
+mv OpenDJ-2.5.0-Xpress1/ /var/opt/				# move to desired location
+cd /opt/
+ln -s /var/opt/OpenDJ-2.5.0-Xpress1/ opendj 	# link for convenience
+cd opendj
+./setup --cli 									# ./setup with no args will attempt to run the GUI installer, will fail and run in cli mode anyway
++---------------------------+
+
+	The options presented during this setup script are also straightforward. The installation instructions work as is, except there is an extra option asking you for the Fully Qualified Domain Name to use when sigining certs. The default option works fine (should be the same as <<<$HOSTNAME>>>).
+
+	After the setup script completes you can verify the settings by running the <<</path/to/opendj/bin/status>>> script and you should see something like this (you'll need the cn of the adminstrator, maybe <<<cn=ldapadmin>>>, and the password):
+
++------------------------------+
+>>>> Specify OpenDJ LDAP connection parameters
+Administrator user bind DN [cn=Directory Manager]: cn=ldapadmin
+Password for user 'cn=ldapadmin':
+          --- Server Status ---
+Server Run Status:        Started
+Open Connections:         5
+          --- Server Details ---
+Host Name:                svc2
+Administrative Users:     cn=ldapadmin
+Installation Path:        /opt/OpenDJ-2.5.0-Xpress1
+Version:                  OpenDJ 2.5.0-Xpress1
+Java Version:             1.6.0_24
+Administration Connector: Port 5444 (LDAPS)
+          --- Connection Handlers ---
+Address:Port : Protocol : State
+	-------------:----------:---------
+ --          : LDIF     : Disabled
+0.0.0.0:161  : SNMP     : Disabled
+0.0.0.0:389  : LDAP     : Enabled
+0.0.0.0:636  : LDAPS    : Disabled
+0.0.0.0:1689 : JMX      : Disabled
+          --- Data Sources ---
+Base DN:     dc=sso
+Backend ID:  userRoot
+Entries:     7
+Replication: Disabled
++------------------------------+
+
+* OpenAM
+
+	OpenAM is ultimately deployed as a .war file, but the download bundle comes with various useful tools like a CLI (Command Line Interface). It's worth downloading the main distribution archive. Get it here at {{http://download.forgerock.org/downloads/openam/openam10/10.0.0/openam_10.0.0.zip}} and extract to some directory eg <<</tmp/openam-extracted>>. Because JBoss EAP6 now deploys wars into dynamically directories under <<</path/to/jboss/standalone/data>>>, it is not guaranteed which directory the .war will be deployed into across container restarts. During configuration, OpenAM will write the options and other configurations to disk, and we would like JBoss to know where these options are after a restart, otherwise the auto-config functionality of OpenAM will kick in again.
+
+** Installation
+
+	There are options available to mitigate against losing the configuration of OpenAM. One is to extract the .war and place the folder (renamed to <<<openam.war>>>) into the <<<deployments>>> directory. Then create a blank file called <<<openam.war.dodeploy>>> to start deployment. After OpenAM configuration options are complete, your options will be saved in <<</path/to/jboss/standalone/deployments/openam.war/openam>>>.
+
+	Another option is to extract the war, modify the <<</path/to/extracted-war/WEB-INF/classes/bootstrap.properties>>> and edit the last line to indicate your preferred config location:
+
++--------------+
+configuration.dir=/path/to/openamconfig
++--------------+
+
+	<<N.B.>> Your container <must> have write access to whatever directory you choose (preferable to running the container as <<<root>>>), and the directory must exist prior to deploying openam.war.
+
+	After the file has been edited, re-archive the .war and deploy it however you like. Here's what the commands might look like:
+
++----------------------+
+mkdir /tmp/openam
+mkdir /tmp/openam-war-extracted
+cd /tmp
+wget http://download.forgerock.org/downloads/openam/openam10/10.0.0/openam_10.0.0.zip
+cd openam
+unzip ../openam_10.0.0.zip
+cd /tmp/openam-war/extracted
+jar xvf /tmp/openam/deployable-war/opensso.war
+
+# edit the file, e.g.,
+configuration.dir=/opt/openam
+
+jar cvf /tmp/openam.war *
+
+# some housekeeping (asusmes user jboss, group server)
+mkdir /var/opt/openam
+cd /opt
+ln -s /var/opt/openam openam
+chown -R jboss:server /var/opt/openam
+chown -R jboss:server /opt/openam
+cp /tmp/openam.war /opt/jboss/server/standalone/deployments
++----------------------+
+
+** Configuration
+
+	Configuration checklist:
+
+	* JBoss prepared
+
+	* LDAP server installed and running
+
+	* Write access enabled to OpenAM config directory
+
+	* openam.war deployed
+
+	[]
+
+	When you visit (e.g.) http://localhost:8080/openam you should now be presented with the initial configuration screen for OpenAM (it's orange!). Choose <<custom configuration>>.
+
+	Choose an administrator password (user defaults to amAdmin) and click next.
+
+	The next screen asks you for the cookie domain. This works best if your host has a Fully Qualified Domain Name (FQDN). You can fake it by adding an entry to <<</etc/hosts>>> that points your IP address to a dummy FQDN like openam.example.com. Enter the sub-domain preceded by a dot (.), e.g., <<<.example.com>>>. Also make sure the config directory matches the one chosen earlier
+
+	Next screen shows the Configuration Data Store settings - the default is a mini-deployment of OpenDJ bundled with OpenAM. This works fine for configuration settings
+
+	Next up is User Data Store configuration. This is where you match up OpenAM with your preconfigured (and running) LDAP server. You will need the address, port, administration Distinguished Name and administrator password.
+
+	Examples:
+
+	* User Data Store Type - OpenDS
+
+	* Directory Name - your LDAP host (FQDN or IP address)
+
+	* Port Number - typcially 389, or 636 for SSL enabled connections
+	
+	* Root suffix - your base DN, like dc=example,dc=com
+	
+	* Login ID - the LDAP administrator DN, like cn=ldapadmin,dc=example,dc=com
+
+	* Password - LDAP administrator password
+
+	[]
+
+	The next two screens are fairly straighforward (since in our example we didn't use a load balancer). After this you should see various setup messages and progress bars and upon successful configuration you will be redirected to the OpenAM Login Screen. user <<amAdmin>> and the password you chose earlier.
+
+	Common errors in initial configuration include:
+
+	* Invalid cookie domain. Annoying since it won't tell you this until the very end and you have to repeat most of the steps
+
+	* No write access to configuration directory. Sometimes it will hang and not tell you anything useful
+
+	[]
+
+	Apart from those two, most of the errors are self explanatory and can be solved on the screen they occur on (incorrect passwords, invalid hostnames, etc)
+
+	To verify your setup, you could go to <<Access Control>> -\> / (Top Level Realm) -\> <<Subjects>>. Any LDAP people entries should be in the table, along with "anonymous" and "amAdmin". If no Subjects appear, and you already have entries defined, try looking at the Data Store configuration under <<Access Control>> -\> <</ (Top Level Realm)>> -\> <<Data Stores>> -\> \<<<the type you chose in configuration\>>>. Under User Configuration, make sure it's searching for the right <<objectClass>> search filter.
+
+	That's it for initial configuration, further info (lots of it!) available at {{{http://docs.forgerock.org/en/openam/10.0.0/admin-guide/index.html}Forgerock's site}}.

@@ -1,0 +1,78 @@
+		--------------
+		De-Centralised Authorization
+		--------------
+
+De-Centralised Authorization
+
+
+	As a first step login to OpenAM, select the proper Realm then set the Agent Filter Mode to J2EE POLICY.
+	
+	To do so navigate to: <<Agents -> J2EE -> select the agent installed on your container that you are going to use for local authorization -> Global>> .
+	
+	In the General settings you can set the Agent Filter Mode. Delete the Current Values, leave Map Key field empty and enter J2EE_POLICY in Corresponding Map Value field.
+	Click Add then Save at the top of the page.	
+
+
+* Tomcat
+
+
+	In case of using Tomcat the role mapping should be set through OpenAm.
+	
+	* Login to OpenAm select the Realm you are using then click on <<Subjects -> Group>>.	
+	  Here you can find/create the groups that can be mapped to your application specific roles in your application's deployment descriptor.
+	
+	
+	* Click on the group you would like to map and save/copy its Universal ID because you will need it later. 
+	
+	
+	* Navigate to <<Agents -> J2EE -> The Tomcat agent you are going to use -> Application>>
+	  Under Privilege Attributes Processing you will find a section called Privileged Attribute Mapping.
+	
+	
+	* Enter the Universal ID of the group in Map Key field and enter your application specific role name in the Corresponding Map Value field and click Add.
+	
+	
+	* Save the changes at the top of the page and the Mapping is ready.
+	
+	
+	* In your application you must have your roles and security constraints defined in the deployment descriptor.
+	  Here is an example of having a role USER and defining security-constraint for it.
+	
+	
+----------------------
+<security-role>
+	<role-name>USER</role-name>
+</security-role>
+
+<security-constraint>
+	<web-resource-collection>
+		<web-resource-name>USER Pages</web-resource-name>
+		<url-pattern>/user.jsp</url-pattern>
+	</web-resource-collection>
+	<auth-constraint>
+		<role-name>USER</role-name>
+	</auth-constraint>
+</security-constraint>
+----------------------
+	
+	In this case the USER has access only to user.jsp
+	
+* Glassfish
+
+	* The steps described in the Tomcat section apply to Glassfish as well, but in case of Glassfish there is also another way to do the role mapping.
+	  Instead of using Privileged Attribute Mapping through OpenAm we can manually set the group-role mapping in the application's glassfish-web.xml file.
+	
+	* The only thing we need is the Universal ID of the OpenAm group that we would like to map to our application's role.
+	
+	* For the mapping we are using the <<security-role-mapping>> tag as it is shown below.
+	
+----------------------
+<security-role-mapping>
+	<role-name>USER</role-name>
+	<group-name>id=manager,ou=group,dc=opensso,dc=java,dc=net</group-name>
+</security-role-mapping>
+----------------------
+	
+	In the previous example we mapped openAm's manager role to our applications USER role.
+	
+	Note that when we are using J2EE_POLICY there is no need for subjects under Realm -> Policies.	

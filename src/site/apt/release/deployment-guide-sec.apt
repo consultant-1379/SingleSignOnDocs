@@ -1,0 +1,113 @@
+		----------------------------------
+				Security Service Deployment Guide
+		----------------------------------
+				Alex McAllister
+		-----------------------------------
+				2012-10-30
+
+Deployment Guide for Security Service Module on LITP Sprint 21
+
+=====================
+
+* Artifacts
+
+	The latest RPM can be obtained from this locations:
+
+		* {{{https://arm1s11-eiffel004.eiffel.gic.ericsson.se:8443/nexus/content/repositories/releases/com/ericsson/nms/services/ERICsecuritysvc_CXP9023099/}Security Service}}
+
+	Security Service consists of two distinct parts, the EAR that is deployed in TOR and a Pluggable Authentication Module (PAM) that is used for authenticating Citrix sessions launching OSS-RC desktop applications via TOR Launcher. This document details the installation of both modules. If the Security Service is installed without the complimentary PAM module then there are no adverse effect on the system except that the user will be prompted for a username and password when launching an OSS-RC desktop application via TOR Launcher.
+
+
+* Steps to Deploy the Security Service rpm Package
+
+	* The Security Service rpm file must be present in the following folder:
+
++----------------------------------+
+/opt/ericsson/nms/litp/etc/cmw/packages
++----------------------------------+
+
+	* Execute the following scripts:
+
++----------------------------------+
+cd /opt/ericsson/nms/litp/bin/samples/
+./clean_up/clean_landscape.sh
+./single_blade/single_blade_definition.sh && ./single_blade/single_blade_inventory.sh
+./single_blade/single_blade_bootmgr.sh
++----------------------------------+
+
+	* To check if the CMW (Core Middleware) has finished installing, issue this command:
+
++----------------------------------+
+cmw-repository-list
++----------------------------------+
+
+	* Workaround for starting Service Groups:
+
+	<<Note:>> Log in to sc-1 node and modify the litp-jbossappwa script. A backup of the litp-jbossappwa script needs to be taken before editing the original script.
+
++----------------------------------+
+ssh sc-1
+cd /opt/ericsson/nms/litp/bin
+cp litp-jbossappwa litp-jbossappwa.orig
++----------------------------------+
+
+	There are no dependencies for the start-up order of components inside Service Groups - this may lead to a failed campaign installation. To solve the problem follow these steps:
+
++----------------------------------+
+Put 'exit 0' as first command in the jbossappwa scripts
+#!/bin/bash
+exit 0
+ 
+#copy the modified file to sc-2
+scp litp-jbossappwa  sc-2:/opt/ericsson/nms/litp/bin/
++----------------------------------+
+
+	* Generate and start the campaign on ms1:
+
++----------------------------------+
+litp /inventory/deployment1/cluster1/cmw_cluster_config/etf_generator generate_etfs
+litp /inventory/deployment1/cluster1/cmw_cluster_config/etf_generator verify
+ 
+Start the campaign by issuing the following on ms1:
+litp /inventory/deployment1/cluster1/cmw_cluster_config/campaign_generator execute
++----------------------------------+
+
+	The command will have finished once the shell returns to the command line.
+
+	* Revert the changes made in Step 4.
+
+	ssh to sc-1 and revert the changes made in the litp-jbossappwa script and copy it to sc-2. 
+
++----------------------------------+
+ssh sc-1
+cd /opt/ericsson/nms/litp/bin
+cp litp-jbossappwa.orig litp-jbossappwa
+ 
+# copy the modified file to sc-2
+scp litp-jbossappwa  sc-2:/opt/ericsson/nms/litp/bin/
++----------------------------------+
+
+	* Check the Jboss logs on the nodes.
+
++----------------------------------+
+ssh sc-1
+less /var/log/jboss/sg1_si_0_jee_container1_instance1/server.log
++----------------------------------+
+
+	<What to look for here?>
+
+* PAM Module Instructions
+
+	Installing and configuring the PAM will be completed during the install of the UAS. To verify that the PAM module is loaded, execute the following command:
+
++----------------------------------+
+grep libpam /etc/pam.conf
++----------------------------------+
+
+	The output should be similar to this:
+
++----------------------------------+
+ica auth sufficient libpam_eric_sso.so debug cntfile=/tmp/COUNTER keyfile=/tmp/MASTERKEY
++----------------------------------+
+
+	The module should be set for ICA protocol as per “ica auth sufficient” in the response.

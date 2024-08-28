@@ -1,0 +1,112 @@
+		-----------------------------------------
+                Deploying SSO Development Server
+		-----------------------------------------
+					Nicholas Fitzgerald
+					---------------
+					  2013-06-28
+
+Deploying SSO Development Server
+
+=========================================					  
+
+* Prerequisites to install the MS
+
+ [[1]]Get the release email from the CI FWK group - {{{https://team.ammeon.com/confluence/display/LITPExt/Release+Notes}LITP Release Notes}}
+
+ [[2]]Get the instructions for deploying TOR on a single blade. For example: {{{http://confluence-oss.lmera.ericsson.se/display/TORRV/Deployment+Instructions%3A+LITP+Sprint+27+on+Single+Blade}LITP 27 Deployment Instructions}}
+ 
+ [[3]]Use the following Excel sheet in GIT to get the necessary info for where the physical blades are located and the enclosure URL - <home_dir>/git/SingleSignOnFiles/hardware/Hardware Inventory.xls
+
+ [[4]]Know the public IP address range available to the MS.
+
+ [[5]]Know the Subnet Mask: /22/23 etc.
+
+ [[6]]Know the gateway for the MS.
+
+ [[7]]Know the Name Server. Either of <<<159.107.173.12>>> or <<<159.107.173.3>>> can be used.
+
+ [[8]]Know the location of LITP ISO. You can get this from the link to the LITP release notes.
+
+ [[9]]Understand the implications of picking ETH-0 or ETH-1 on network interface options. For SSO, we should always pick ETH-1 (or you will have to modify the config file from CI FWK website).
+
+ [[10]]Are there any Patch sets or Service packs needed?
+ 
+ [[11]]Choose whether to install the MS using a USB key or Nexus and follow appropriate instructions below.
+
+* Install MS using USB key
+
+ [[1]]Download the LITP ISO and save it to an USB key and plug it into the back of the enclousure of the blade you want to install.
+
+ [[2]]Use Internet Explorer and connect to the Blade Enclosure Onboard Administrator. Get the credential details from the Hardware Inventory Excel sheet.
+
+ [[3]]Click the "Device Bays" link in the left hand menu and select your blade.
+
+ [[4]]Click the "Boot Options" tab. Click on CD-ROM in the "One Time Boot" dropdown box and click Apply.
+
+ [[5]]Click the "Virtual Devices" tab. In the "Connect to Device" dropdown box, select the USB key you inserted and click Apply.
+
+ [[6]]From the "Virtual Devices" tab, then click the "Cold Boot" button. This will reboot the server and the install will continue.
+
+ [[7]]Follow the steps on the LITP install page to get the MS installed. For example - {{{https://team.ammeon.com/confluence/display/LITPExt/Install+the+Management+Server+-+Sprint+27}Install the MS}}
+
+ [[8]]Check to see if any post-install patches are needed. These may be sent out by CI FWK team or check the LITP Installation Instructions. For example - {{{https://team.ammeon.com/confluence/display/LITPExt/LITP+Installation+Instruction+Sprint+27+Production+Version}LITP Installation Instructions}}
+
+* Install MS using Nexus (only available on G8 blades)
+
+ [[1]]Use the instructions at this address under heading "Installing the Management Server": {{{https://arm1s11-eiffel004.eiffel.gic.ericsson.se:8443/nexus/content/sites/tor/DeploymentScripts/index.html}Installing the Management Server}}
+
+ [[2]]After the blade has rebooted, follow the steps on the LITP install page to get the MS installed. For example - {{{https://team.ammeon.com/confluence/display/LITPExt/Install+the+Management+Server+-+Sprint+27}Install the MS}}
+
+ [[3]]Check to see if any post-install patches are needed. These may be sent out by CI FWK team or check the LITP Installation Instructions. For example - {{{https://team.ammeon.com/confluence/display/LITPExt/LITP+Installation+Instruction+Sprint+27+Production+Version}LITP Installation Instructions}}
+
+* Prerequisites to deploy the SC-1,SC-2 and TOR software
+
+ [[1]]Know the location of TOR ISO - {{{https://cifwk-oss.lmera.ericsson.se/}Product Release Summary}}
+
+ [[2]]Know the public IP range available to the SC servers. Use "nslookup" on the server name and surrounding IP addresses from a machine with access to the DNS servers. For example, atrcxb2750-1 to atrcxb2750-10.
+
+ [[3]]Understand the configuration of the SC-1 and SC-2 so you can register servers on the CI FWK portal. Note: This is already done for these 4 SSO servers: atrcxb2750, atrcxb2748, atrcxb2093, atrcxb2094. \
+ If you need to register a new server, use the instructions at this address under heading "Defining a Single Node Cluster": {{{https://arm1s11-eiffel004.eiffel.gic.ericsson.se:8443/nexus/content/sites/tor/DeploymentScripts/index.html}Defining a Single Node Cluster}}
+ 
+ [[4]]Make sure you have the LDAP root certificate downloaded from the OMSAS of the OSS you are configuring against. This is stored on OMSAS as "/opt/ericsson/csa/certs/DSCertCA.pem" and should be saved as "rootca.cer" on the MS (e.g. in /opt/ericsson/nms/litp/bin/deployment/sso/)
+ 
+* Install SC nodes for Single Blade
+
+ [[1]]The SSO deployment scripts are in the "SingleSignOnFiles" repo. Pull them down to the VM server (atrcx1933vm21) with GIT installed. \
+ Copy over the script to MS-1 that will mount the VM and fetch deployment scripts via URL:
+ 
++----------------------------------+
+ scp get_deploy_scripts_mount_vm.sh root@<MS server ip>:/var/tmp
++----------------------------------+
+
+ [[2]]Download the server configuration file from CI FWK portal after registering your server - {{{https://cifwk-oss.lmera.ericsson.se/dmt/clusters/}Deployment Clusters}}.
+
+ [[3]]Get the URL to the latest deployment scripts from CI FWK/RV. Get these from the TOR Deployment Instructions. For example: {{{http://confluence-oss.lmera.ericsson.se/display/TORRV/Deployment+Instructions%3A+LITP+Sprint+27+on+Single+Blade}LITP 27 Deployment Instructions}} \
+ The URL should look similar to - https://arm1s11-eiffel004.eiffel.gic.ericsson.se:8443/nexus/content/repositories/releases/com/ericsson/tor/DeploymentScripts/1.0.52/DeploymentScripts-1.0.52.tar.gz
+ 
+ [[4]]On the MS, do the following:
+ 
++----------------------------------+
+ cd /var/tmp
+ ./get_deploy_scripts_mount_vm.sh <URL to Deployment scripts>
++----------------------------------+
+
+ This will create the deployment directory "/opt/ericcson/nms/litp/bin/deployment", untar the scripts and mount the SSO scripts from the VM so all scripts are available to deploy the SC nodes.
+
+ [[5]]The SSO script are not fully generic. They should work against any TOR server however will currently only work towards the 3 LDAP/UAS servers that SSO use for testing. \
+ To add a new LDAP/UAS and associated data, you need to update the properties.deploy script on the VM. \
+ If using one of the existing 3 LDAP/UAS combinations that SSO have tested against, on the MS create a file "/tmp/properties.deploy.local" with following type of information:
+
++----------------------------------+
+ LDAP_TO_TEST_AGAINST=atrcxb2582
+ SERVER_TO_TEST_AGAINST=atrcxb2750
+ CONFIG_FILE=/opt/ericsson/nms/litp/bin/deployment/etc/single-node.cfg
+ PEER_NODES=PEER_NODES="SC-1 SC-2"
++----------------------------------+
+
+
+ [[6]]Make sure that SSO is decribed correctly in the runtime.sh script in the bin directory.
+
+ [[7]]Remove PM and FM from runtime.sh script. (Comment out what is not required for your testing, eg PM ,FM etc...)
+ 
+ [[8]]Follow the steps in the TOR Deployment Instructions. For example: {{{http://confluence-oss.lmera.ericsson.se/display/TORRV/Deployment+Instructions%3A+LITP+Sprint+27+on+Single+Blade}LITP 27 Deployment Instructions}}

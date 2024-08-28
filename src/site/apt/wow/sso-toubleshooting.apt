@@ -1,0 +1,15 @@
+		---------------------
+		SSO Troubleshooting
+		---------------------
+
+Single Sign On Troubleshooting
+
+=====================================
+
+	When testing behaviour between an end-user's browser and the OpenAM server or various client apps, it is possible to use standard browser inspection tools such as in Chrome (Ctrl+Shift+I) or Firefox (Ctrl+Shift+K). However, when troubleshooting on a server where using a browser is not possible, command-line tools are more useful.
+
+* cURL
+
+* tcpdump / snoop (Solaris)
+
+	{{{http://danielmiessler.com/study/tcpdump/}A tcpdump primer}}

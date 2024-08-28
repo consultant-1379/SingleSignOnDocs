@@ -1,0 +1,29 @@
+		--------------
+		Single Sign On
+		--------------
+
+Single Sign On
+
+=============================
+
+* Why Single Sign On?
+
+	OSS-RC has lots of separate applications, and lots of separate login credentials. We want to present users
+	with a single login interface where they only need one set of credentials, and from then on be able to access
+	any application in the FREJA suite.
+
+* FREJA Today
+
+[images/freja-today.png] FREJA House today
+
+* Goal for FREJA
+
+[images/freja-goal.png] FREJA House with full SSO
+
+* Current Issues
+
+	* Automatic installation and configuration of OpenAM
+
+	* Upgrade
+
+	* HA

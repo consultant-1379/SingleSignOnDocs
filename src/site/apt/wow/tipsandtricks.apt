@@ -1,0 +1,125 @@
+		--------------
+		SSO Tips and Tricks
+		--------------
+		Alex McAllister
+
+SSO Tips and Tricks
+
+===================
+
+	Here are some things to remember when configuring Single Sign On using OpenAM and Policy Agent
+
+* Missing Realm from Policy Agent configuration
+
+	If you are setting up OpenAM manually or on you local machine, be sure to add the relevant 'Realm' definition in your Agent configuration file <<OpenSSOAgentBootstrap.properties>> <around line 74>
+
++------------------------------------+
+#
+# AGENT USERNAME AND PASSWORD PROPERTIES
+#   These are the credentials used by the Agent to identify and
+#   authenticate itself before requesting any services.
+#   - organization.name:  Specifies the organization or realm name to be used
+#       for authenticating the Agent during runtime.
+#       The default value "/" identifies the root organization or realm.
+#   - username: Agent profile name
+#   - password: Agent profile's password
+#   - key: Encryption key to encrypt agent profile password
+# Hot-Swap Enabled: No
+#
+com.sun.identity.agents.config.organization.name = /<realm-name>
++------------------------------------+
+
+* SSL-Enabled Policy Agent
+
+	In Policy Agent version 3.0.4, there is a bug that requires modification of 2 environment variables (and a restart of the httpd server for these changes to take effect). Append this to <<</etc/sysconfig/httpd>>>:
+
++------------------------------------+
+export NSS_STRICT_NOFORK="DISABLED"
+export NSS_STRICT_SHUTDOWN=""
+export LD_LIBRARY_PATH_64=$LD_LIBRARY_PATH_64:/etc/httpd/modules:/opt/ericsson/sso/web_agents/apache22_agent/lib
++------------------------------------+
+
+======================
+
+Useful commands and shortcuts
+
+	Connecting to specific JBoss management console based on instance name
+
+-----------------------------------
+/usr/bin/curl http://$( ps -ef | grep SSO | grep -o jboss.bind.address.management=[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]* | head -1 | cut -d= -f2 ):8080/
+-----------------------------------
+
+	Testing UI JBoss instance (applications list)
+
+----------------------------------
+/usr/bin/curl http://$( ps -ef | grep UI | grep -o jboss.bind.address.management=[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]* | head -1 | cut -d= -f2 ):8080/rest/apps -H X-Tor-UserId:joe
+----------------------------------
+
+	Monitor the AMF states of Service Units
+
+	<<httpd>>
+
+----------------------------------
+watch -n 0.5 "amf-state su all | grep -A 4 httpd"
+----------------------------------
+
+	<<SSO JBoss>>
+
+----------------------------------
+watch -n 0.5 "amf-state su all | grep -A 4 SSO"
+----------------------------------
+
+
+	Results in screen clearing and the following output (needs CTRL-c to cancel):
+
+----------------------------------
+Every 0.5s: amf-state su all | grep -A 4                                  Fri Jun 14 15:17:45 2013
+
+safSu=httpd_App-SuType-1,safSg=httpd,safApp=httpd_App
+        saAmfSUAdminState=UNLOCKED(1)
+        saAmfSUOperState=ENABLED(1)
+        saAmfSUPresenceState=INSTANTIATED(3)
+        saAmfSUReadinessState=IN-SERVICE(2)
+--
+safSu=httpd_App-SuType-0,safSg=httpd,safApp=httpd_App
+        saAmfSUAdminState=UNLOCKED(1)
+        saAmfSUOperState=ENABLED(1)
+        saAmfSUPresenceState=UNINSTANTIATED(1)
+        saAmfSUReadinessState=IN-SERVICE(2)
+----------------------------------
+
+	Here are some sample <<<screenrc>>> files that allow ou to monitor several log files with one terminal. You can invoke with screen like this: <<<screen -c ~/.screenrc-jboss>>>.
+
+	Save as <<</root/.screenrc-httpd>>>
+
+----------------------------------
+vbell off
+
+split
+screen -t       "amf-state of httpd"            0               watch -n 0.2 "amf-state su all | grep -i 'httpd\|Apache' -A 4"
+focus
+screen -t       "httpd ssl access logs"         1               less +F /var/log/httpd/ssl_access_log
+split
+focus
+screen -t       "httpd ssl error logs"          2               less +F /var/log/httpd/ssl_error_log
+
+focus top
+resize 13
+----------------------------------
+
+	Save as <<</root/.screenrc-jboss>>>
+
+----------------------------------
+vbell off
+
+split
+screen -t       "amf-state of SSO"              0               watch -n 0.2 "amf-state su all | grep SSO -A 4"
+focus
+screen -t       "LITP JBoss logs"               1               less +GF /var/log/litp/litp_jboss.log
+split
+focus
+screen -t       "system logs"                   2               less +GF /var/log/messages
+
+focus top
+resize 13
+----------------------------------

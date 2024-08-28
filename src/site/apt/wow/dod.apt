@@ -1,0 +1,42 @@
+		-------------------
+		SSO POC Definition of Done
+		-------------------
+		Aislinn Green
+
+SSO Proof of Concept - Definition of Done
+
+==========================================
+
+* Ready for Sprint
+	
+	* The stories have been reviewed by the team and declared ready for entry into sprint.
+
+* Per Story
+
+	[[1]]Demo given to the Product Owner and accepted
+
+	[[2]]Documentation Complete
+
+		[[a]]Deployed to Nexus server (using maven site)
+
+			[[i]]Configuration steps
+
+			[[ii]]Set-up environment (which version used and packages)
+
+			[[iii]]Parts not covered by the POC
+
+		[[b]]Design decisions recorded
+
+	[[3]]Documentation is tested by another team member to ensure they successfully replicate solution
+
+	[[4]]Solution is reviewed by the team
+
+	[[5]]Stories are demoed to the team members as they are delivered
+
+	[[6]]Solution is aligned with SAML standard
+
+	[[7]]No outstanding known defects against stories acceptance criteria
+
+	[[8]]Solution is deployed to SSO blades
+
+	[[9]]Tested to ensure that story increment does not impact/works with previously delivered stories.

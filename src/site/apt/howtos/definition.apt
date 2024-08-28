@@ -1,0 +1,195 @@
+		-----------------------------------------
+		SSO Deployment Definition for LITP
+		-----------------------------------------
+					Alex McAllister
+					---------------
+					  2013-03-22
+
+Deployment Definition section for Single Sign On
+
+================================================
+
+	This document describes the SSO-specific LITP deployment defintions in LITP command format
+
+* JBoss Container Definition
+
+	This section defines the SSO JBoss container with a custom standalone.xml
+
+-----------------------------------------------------
+################################################################################
+# Define jee instance for the Open AM service - second jboss cluster
+################################################################################
+# We need to change multicast address and ports to separate this jboss cluster
+# from the other
+litp /definition/jee_torSSO create component-def name=jee_torSSO version=1.0.0
+#NOTE: if you specify repository - the rpm package will be looked up ONLY in the specified repository
+#litp /definition/jee_torSSO/rpm create package-def name="ERICjbosstemp_CXP9030293" ensure="installed" repository="CUSTOM_REPO"
+litp /definition/jee_torSSO/rpm create package-def name="ERICjbosstemp_CXP9030293" ensure="installed"
+#we point post-start variable to directory without any executable to prevent this jboss instance to run the remoting-ejb script
+#NOTE: the specified directory must exist, otherwise the campaign installation will fail for jboss instances using this definition
+litp /definition/jee_torSSO/instance create jee-container-def name=jboss_torSSO instance-name={rdni} version=1.0.0 install-source=/opt/ericsson/nms/jboss/jboss-eap-ericsson-6.0.tgz log-dir='/var/log/jboss/{rdni}' data-dir='/home/jboss/{rdni}/jboss_data' home-dir='/home/jboss/{rdni}' process-user=litp_jboss  process-group=litp_jboss management-listener={ip.address} public-listener={ip.address} public-port-base=8080 management-user=root management-password=shroot command-line-options="-Djgroups.uuid_cache.max_age=5000 --server-config=standalone-sso.xml" messaging-group-address='231.8.11.8' default-multicast='231.8.11.8' messaging-group-port='12100' jgroups-mping-mcast-addr='230.0.11.147' jgroups-mping-mcast-port='45100' jgroups-udp-mcast-addr='230.0.11.147' jgroups-udp-mcast-port='45103' jgroups-bind-addr='{ip.address}' internal-listener='{ip.address}' post-start=/var/spool
+litp /definition/jee_torSSO/instance/preferIPv4Stack create jee-property-def property='-Djava.net.preferIPv4Stack' value=true
+litp /definition/jee_torSSO/instance/gcInterval create jee-property-def property='-Dsun.rmi.dgc.server.gcInterval' value=300
+litp /definition/jee_torSSO/instance/logPerDeployment create jee-property-def property='-Dorg.jboss.as.logging.per-deployment' value=false
+litp /definition/jee_torSSO/instance/ip create ip-address-def pool=management_net net_name=mgmt
+
+#STORY-5009
+litp /definition/jee_torSSO/instance/jee_unsecure create jee-property-def property='-Djboss.bind.address.unsecure' value=127.0.0.1
+#additional firewall rules to enable multicast traffic on the defined ports
+litp /definition/jee_torSSO/instance/fw_jee_torSSO create firewalls-def name="006 jee torSSO" dport="12100,45100,45103"
+-----------------------------------------------------
+
+* Deployable Entity
+
+	This setion defines the SSO "application" and post_start script locations
+
+	<<N.B.>> The <<<deployable-entity-def>>> version will change
+
+-----------------------------------------------------
+# Single Sign On
+litp /definition/ssoSSO create component-def name=sso version=1.0.0
+litp /definition/ssoSSO/pkg create package-def name="ERICsinglesignon_CXP9022934" ensure="installed"
+litp /definition/ssoSSO/de create deployable-entity-def name=heimdallr.war version=1.3.5 install-source=/opt/ericsson/sso/heimdallr.war app-type=war service=jboss_torSSO post-start=/opt/ericsson/sso/jboss/jboss_app/post_start.d
+-----------------------------------------------------
+
+* Service Groups
+
+-----------------------------------------------------
+#################################################################################
+# Service Group 1 - SSO (aka OpenAM)     #SingleSignOn#
+#################################################################################
+litp /definition/deployment1/cluster1/SSO create service-group-def node_list="sc1,sc2" availability_model="nway-active" version="1.0.0"
+litp /definition/deployment1/cluster1/SSO/si create service-instance-def active-count=1 version="1.0.0"
+litp /definition/deployment1/cluster1/SSO/si/jee create component-ref component="jee_torSSO"
+litp /definition/deployment1/cluster1/SSO/si/sso_app create component-ref component="ssoSSO"
+-----------------------------------------------------
+
+-----------------------------------------------------
+#################################################################################
+# Service Group X - httpd
+#################################################################################
+litp /definition/deployment1/cluster1/httpd create service-group-def node_list="sc1,sc2" availability_model="2n" version="1.0.0" require=SSO
+litp /definition/deployment1/cluster1/httpd/si create service-instance-def active-count=1 version="1.0.0"
+litp /definition/deployment1/cluster1/httpd/si/apache create component-ref component="apache_server"
+-----------------------------------------------------
+
+* Policy Agent package-def and Dependency for Apache
+
+-----------------------------------------------------
+litp /definition/apache_server/sso_pa_pkg create package-def name="ERICssoapa_CXP9023491" ensure="installed" repository="Ammeon_Custom"
+litp /definition/apache_server/httpd_service create lsb-service-def name='httpd' require="apache_pkg,mod_ssl_pkg,mod_wsgi_pkg,sso_pa_pkg"
+-----------------------------------------------------
+
+* Security Service
+
+	Package definition for Security Service 
+
+	<<N.B.>> The <<<deployable-entity-def>>> version will change along with the ear file version
+
+-----------------------------------------------------
+# Security Service
+litp /definition/security_svcUI create component-def name=security_service version=1.0.17
+litp /definition/security_svcUI/pkg create package-def name="ERICsecuritysvc_CXP9023099" ensure="installed"
+litp /definition/security_svcUI/de create deployable-entity-def name=SecurityService-ear-1.2.2.ear version=1.2.2 install-source=/opt/ericsson/com.ericsson.nms.services/SecurityService-ear-1.2.2.ear app-type=ear service=jboss_torUI
+-----------------------------------------------------
+
+	This then needs to be added as a dependency of the UI Service Group
+
+-----------------------------------------------------
+#################################################################################
+# Service Group 3 - UI Service Group 
+#################################################################################
+litp /definition/deployment1/cluster1/UIServ create service-group-def node_list="sc1,sc2" availability_model="nway-active" version="1.0.0"
+litp /definition/deployment1/cluster1/UIServ/si create service-instance-def active-count=2 version="1.0.0"
+litp /definition/deployment1/cluster1/UIServ/si/jee create component-ref component="jee_torUI"
+litp /definition/deployment1/cluster1/UIServ/si/presentation_server create component-ref component="presentation_server"
+litp /definition/deployment1/cluster1/UIServ/si/security_service create component-ref component="security_service"
+-----------------------------------------------------
+
+* Service Group for httpd (Apache)
+
+	This will ensure the order of installation - "require=SSO"
+
+-----------------------------------------------------
+#################################################################################
+# Service Group X - httpd
+#################################################################################
+litp /definition/deployment1/cluster1/httpd create service-group-def node_list="sc1,sc2" availability_model="2n" version="1.0.0" require=SSO
+litp /definition/deployment1/cluster1/httpd/si create service-instance-def active-count=1 version="1.0.0"
+litp /definition/deployment1/cluster1/httpd/si/apache create component-ref component="apache_server"
+-----------------------------------------------------
+
+* Firewall Definitions
+
+	SSO requires that ports <<389>> and <<636>> be open to allow LDAP traffic through
+
+-----------------------------------------------------
+litp /definition/os/ossc/fw_apps create firewalls-def name="001 custom ports" dport="636,389,1494"
+-----------------------------------------------------
+
+* Extra Dependency on UI
+
+	For SSO to be of any benefit in testing installation, it is best to have UI installed on the same instances as SSO
+
+	JBoss
+
+-----------------------------------------------------
+################################################################################
+# Define jee instance for the TOR UI services - all in one jboss cluster
+################################################################################
+litp /definition/jee_torUI create component-def name=jee_torUI version=1.0.0
+litp /definition/jee_torUI/rpm create package-def name="eap-litp-rpm-1.0.12" ensure="installed" repository="Ammeon_Custom"
+litp /definition/jee_torUI/instance create jee-container-def name=jboss_torUI instance-name={rdni} version=1.0.0 install-source=/opt/ericsson/nms/jboss/jboss-eap-ericsson-6.0.tgz log-dir='/var/log/jboss/{rdni}' data-dir='/home/jboss/{rdni}/jboss_data' home-dir='/home/jboss/{rdni}' process-user=litp_jboss  process-group=litp_jboss management-listener={ip.address} public-listener={ip.address} public-port-base=8080 management-user=root management-password=shroot command-line-options="-Djgroups.uuid_cache.max_age=5000" messaging-group-address='231.8.10.8' default-multicast='231.8.10.8' messaging-group-port='12100' jgroups-mping-mcast-addr='230.0.10.147' jgroups-mping-mcast-port='45100' jgroups-udp-mcast-addr='230.0.10.147' jgroups-udp-mcast-port='45103'
+litp /definition/jee_torUI/instance/preferIPv4Stack create jee-property-def property='-Djava.net.preferIPv4Stack' value=true
+litp /definition/jee_torUI/instance/gcInterval create jee-property-def property='-Dsun.rmi.dgc.server.gcInterval' value=300
+litp /definition/jee_torUI/instance/ip create ip-address-def pool=network net_name=mgmt
+litp /definition/jee_torUI/instance/modcluster_multicast create jee-property-def property='-Djboss.modcluster.multicast.address' value=224.0.1.105
+
+#STORY-5009
+litp /definition/jee_torUI/instance/jee_unsecure create jee-property-def property='-Djboss.bind.address.unsecure' value=127.0.0.1
+-----------------------------------------------------
+
+	Presentation Server .ear
+
+-----------------------------------------------------
+# Presentation Service
+litp /definition/presentation_server create component-def name=presentation_server version=1.0.70
+litp /definition/presentation_server/pkg create package-def name="ERICps_CXP9030203-1.0.70" ensure="installed"
+litp /definition/presentation_server/de create deployable-entity-def name=presentation-server.ear version=1.0.70 install-source=/opt/ericsson/com.ericsson.nms.pres.PresentationServer/presentation-server.ear app-type=ear service=jboss_torUI post-start=/opt/ericsson/com.ericsson.nms.pres.ModCluster/post_start.d
+-----------------------------------------------------
+
+	Static Content
+
+-----------------------------------------------------
+#Install UI Static Content
+#Presentation Container
+litp /definition/presentation_container create component-def
+litp /definition/presentation_container/pkg create cmw-bundle-def bundle_name="ERICprescontainer_CXP9030205-1.0.38" bundle_type="rpm" version="1"
+
+#Presentation Launcher
+litp /definition/presentation_launcher create component-def
+litp /definition/presentation_launcher/pkg create cmw-bundle-def bundle_name="ERIClauncher_CXP9030204-1.0.36" bundle_type="rpm" version="1"
+
+#Presentation mod cluster
+litp /definition/presentation_mod_cluster create component-def
+litp /definition/presentation_mod_cluster/pkg create cmw-bundle-def bundle_name="ERICpsmc_CXP9030291-1.0.71" bundle_type="rpm" version="1"
+
+#DMS Help
+litp /definition/dms_help create component-def
+litp /definition/dms_help/pkg create cmw-bundle-def bundle_name="ERIChelp_CXP9030287-1.0.9" bundle_type="rpm" version="1"
+
+#Mod Cluster
+
+#Install the index.html page
+litp /definition/presentation_container/index_html create file-def name=presentation_index_html path=/var/www/html/index.html source=file:///opt/ericsson/com.ericsson.nms.pres.TorContainer/html/index.html name="index.html" mode="755" #require="apachebase"
+#Install the TOR-Container
+litp /definition/presentation_container/container create file-def name=pres_container path=/var/www/html/container source=/opt/ericsson/com.ericsson.nms.pres.TorContainer/html/container mode="755" ensure=directory recurse=true #require="apachebase"
+#Install the TOR-Login
+litp /definition/presentation_container/login create file-def name=presentation_login path=/var/www/html/login source=/opt/ericsson/com.ericsson.nms.pres.TorContainer/html/login  mode="755" ensure=directory recurse=true #require="apachebase"
+#Install the TOR-Launcher
+litp /definition/presentation_launcher/launcher create file-def name=pres_launcher path=/var/www/html/container/tor-launcher source=/opt/ericsson/com.ericsson.nms.pres.TorLauncher/html/container/tor-launcher ensure=directory recurse=true #require="presentation_container"
+#Install the TOR-Launcher-help
+litp /definition/presentation_launcher/help create file-def name=pres_launcher_help path=/var/www/html/help source=/opt/ericsson/com.ericsson.nms.pres.TorLauncher/html/help ensure=directory recurse=true #require="presentation_container"
+#Install the DMS-Help
+litp /definition/dms_help/help create file-def name=dms_help path=/var/www/html/apps source=/opt/ericsson/com.ericsson.nms.pres.TorHelp/html/apps  mode="755" ensure=directory recurse=true #require="apachebase"
+-----------------------------------------------------

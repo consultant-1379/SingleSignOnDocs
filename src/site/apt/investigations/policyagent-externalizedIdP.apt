@@ -1,0 +1,55 @@
+            ------
+            OpenAM Policy Agent and external Identity Provider 
+            ------
+            Dobromir Petrov
+            ------
+			2012-10-15
+			------
+            
+OpenAM Policy Agent and external Identity Provider 		
+
+========================================================================
+
+* Scope
+
+	This document is not a how-to guide for installing or configuring the technologies listed below. It documents an investigative task as part of the Single Sign On proof of concept (POC).
+
+* Goal
+
+	The investigation task was to find out whether OpenAM Policy Agent is able to communicate through external Identity Provider to LDAP data store.
+	
+* Requirements
+
+** Summary
+	
+	Policy Agent(PA) should be verifying user's credentials through the IdP provider and be unaware of where is the data store that is behind the IdP.
+	
+** Use Case	
+
+	[[1]]	Setup Policy Agent(PA) on Tomcat server which  to protect a sample web application.
+ 
+	[[2]]	The PA must be registered inside a sub-realm using 	OpenAM Configuration Platform. 
+	
+	[[3]]	In the same sub-realm we have a Circle of Trust(COT) which hots the metadata of an external Identity Provider(IdP). This IdP is connected to 
+			communicate to its own LDAP data store to verify the submit credentials by the user.
+	
+	[[4]]	For the purpose of the test the data store configured for the PA should be empty. The actual registered users are in the data store used by the IdP.
+	
+	[[5]]	The PA should be configured so that it will forward the AA(Authentication/Authorization) requests towards the IdP. 
+	
+	[[6]]	The Subject under the Policy can be any name that is to be authenticated.
+
+* Technologies
+
+	* Apache Tomcat v6.0.35
+
+	* OpenAM v10.0.0
+
+	* Policy Agent (Tomcat) v3.0-ER2
+
+* Conclusion
+
+	After setting up the system Wireshark was used to intercept the network packets exchanged among the SSO entities.
+	As of today the OpenAM's Policy Agent configuration did not provide a mechanism to setup direct communication with the external IdP.
+	PA communicated directly to the external LDAP data store and it only shared the SSO session with the external IdP in the context of the sub-realm.
+	

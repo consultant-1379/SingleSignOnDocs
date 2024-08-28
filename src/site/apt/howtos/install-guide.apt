@@ -1,0 +1,414 @@
+		----------------------------------
+				Installation Guide
+		----------------------------------
+		Alex McAllister and Dobromir Petrov
+		-----------------------------------
+					2012-10-30
+
+Installation Guide
+
+===================
+
+* Environmental Prerequisites and assumptions
+
+	*	This installation guide is designed for standalone JBoss instance
+	
+	*	The machine must have a valid domain name
+	
+	*	Jboss EAP-6 container bound to localhost port 8080
+	
+	*	JBoss installation folder is /opt/jboss-eap
+	
+	*	Apache Web container configured as riversed proxy for the above instance of Jboss
+	
+	*	JRE installed and JAVA_HOME environmental variable set
+	
+	*	Java Key Store of this computer must have CA certificate imported	
+	
+	*	No port offset is configured for JBoss
+	
+	*	JBoss port bandwidth is optimized 
+	
+	*	Domain name of COMINF LDAP is added to /etc/hosts file
+	
+	*	Internet Browser access is required
+
+
+* 1 Deployment of TOR Single sign-on war file
+
+	*	JBoss EAP-6 Preperation
+
+		*	Add the following line to <</path/to/jboss/modules/sun/jdk/main/module.xml>> <<<paths>>> element:		
+		
++-----------------+
+	<path name="sun/security/x509"/>
++-----------------+		
+		
+		*	Remove the following from <<</path/to/jboss/standalone/configuration/standalone-full-ha.xml>>>
+
++-----------------+
+	<extension module="org.jboss.as.jaxrs"/>
+	...
+	<extension module="org.jboss.as.webservices"/>
+			 
+	...
+	<subsystem xmlns="urn:jboss:domain:jaxrs:1.0"/>
+			 
+	...
+			 
+	<subsystem xmlns="urn:jboss:domain:webservices:1.1">
+		...
+	</subsystem>
++-----------------+		
+
+	*	Deployment of TOR Single sign-on war file
+	
+		*	Copy <<<heimdallr.war>>> into <<</path/to/jboss/standalone/deployments>>> folder
+		
++-----------------+
+	cp heimdallr.war  /path/to/jboss/standalone/deployments
++-----------------+				
+		
+		*	Run JBoss by calling the following command:
+		
++-----------------+
+	service	jboss-eap start
++-----------------+			
+		
+		*	Deploy <<<heimdallr.war>>> by running the command:
+		
++-----------------+
+	/opt/jboss-eap/bin/jboss-cli.sh --controller=yourIPaddress:9999 --connect --user=jboss-eap --password=jboss-eap -c "deploy /opt/jboss-eap/standalone/deployments/heimdallr.war, deployment-info --name=heimdallr.war"
++-----------------+
+
+
+
+* 2 Manual Installation of TOR-SSO
+
+	Note:	This installation is a browser facilitated only and must be peformed by the operator
+
+	*	Create a configuration folder for TOR-SSO.
+	
++-----------------+
+	mkdir -p /var/opt/torsso
++-----------------+	
+	*	Create a symbolic link to this folder
+
++-----------------+
+	ln -s /var/opt/torsso /opt/torsso
++-----------------+	
+
+	*	Change the permisson on the directory
+
++-----------------+
+	chmod 755 /var/opt/torsso
++-----------------+	
+	
+	*	Open a browser and navigate to {{http://your.machine.domain.name/heimdallr}}
+	
+	*	This is the start page you should see in your browser:	
+
+===================
+	
+[../images/openam/openam-start.png]
+
+===================
+
+	*	In the initial configuration screen, click <<Create New Configuration>> under Custom Configuration.
+	
+===================	
+
+[../images/openam/openam-conf-amadmin.png]
+
+===================	
+	
+	*	<<Step 1:>>		Provide a password having at least 8 characters for the SSO configuration platform Administrator, <<<amadmin>>>.
+	
+===================	
+
+[../images/openam/openam-conf-server-settings.png]
+
+===================		
+	
+	*	<<Step 2:>>		Make sure the server settings are valid for your configuration.
+	
+	Server URL
+	
+		*	Provide a valid URL to the base of your SSO configuration platform web container, including a fully qualified domain name (FQDN).
+		
+	Cookie Domain
+	
+		*	Starts with a dot (<<.>>)
+	
+	Platform Locale
+		
+		*	Supported locales include en_US (English), de (German), es (Spanish), fr (French), ja (Japanese), ko (Korean), zh_CN (Simplified Chinese), and zh_TW (Traditional Chinese).
+
+	Configuration Directory
+	
+		*	Location on server for SSO platform configuration files. TOR-SSO must be able to write to this directory.
+	
+===================
+
+[../images/openam/openam-conf-data-store.png] 
+
+===================	
+	
+	*	<<Step 3:>>	In the Configuration Store screen, you can accept the defaults to allow TOR-SSO to store configuration data in an embedded directory.
+		
+		Note:	The port selected below will be validate by the installer if they are free.
+		
+				*	Configuration Store Details:	
+				
+					*	Configuration Data Store    TOR-SSO 
+					
+					*	SSL/TLS Enabled             unchecked	
+	
+					*	Host Name                   localhost
+					
+					*	Port                        5555
+					
+					*	Admin Port                  5556
+					
+					*	JMX Port                    5557
+					
+					*	Encryption Key              ...........................
+					
+					*	Root Suffix                 dc=opensso,dc=java,dc=net
+	
+======================
+
+[../images/openam/openam-conf-user-store.png]  
+
+======================
+
+	*	<<Step 4:>>	In the User Store screen, you configure where SSO looks for user identities.
+	
+	TOR-SSO must have write access to the directory service you choose, as it adds to the directory schema needed to allow TOR-SSO to manage access for users in the user store.
+
+		*	User Data Store Type
+		
+			*	If you have a directory service already provisioned with users in a supported user data store, then select that type of directory from the options available.
+
+		*	SSL/TLS Enabled
+		
+			*	To use a secure connection, check this box, then make sure the Port you define corresponds to the port on which the directory listens for StartTLS or SSL connections. When using this option you also need to make sure the trust store used by the JVM running TOR-SSO has the necessary certificates installed.
+
+		*	Directory Name
+		
+			*	FQDN for the host housing the directory service
+
+		*	Port
+		
+			*	LDAP directory port. The default for LDAP and LDAP with StartTLS to protect the connection is port 389. The default for LDAP over SSL is port 636. Your directory service might use a different port.
+
+		*	Root Suffix
+		
+			*	Base distinguished name (DN) where user data are stored
+
+		*	Login ID
+		
+			*	Directory administrator user DN. The administrator must be capable of updating schema and user data.
+
+		*	Password
+		
+			*	Password for the directory administrator user
+
+======================
+
+[../images/openam/openam-conf-site.png]  
+
+======================
+
+	*	<<Step 5:>>		In the Site Configuration screen, you can set up TOR-SSO as part of a site where the load is balanced across multiple TOR-SSO servers.
+	
+	For your first TOR-SSO installation, accept the defaults.
+
+======================
+
+[../images/openam/openam-conf-pa.png]  
+
+======================
+
+	*	<<Step 6:>>		In the Agent Information screen, provide a password having at least 8 characters to be used by policy agents to connect to SSO configuration platform.
+	
+======================
+
+[../images/openam/openam-summary.png] 
+
+======================
+
+	*	<<Summary:>>	The Summary Page shows a brief summary of the settings that were defined in the previous few steps before the configuration is created. Clicking Create Configuration will begin the configuration process. 
+
+======================
+
+[../images/openam/openam-install-progress.png] 
+
+======================
+
+	*	<<Finish:>>		The Configuration Progress Screen will display the progress of the installation and take a couple of minutes to run through. All of the output on this screen, as well as any errors, are written to the file~/openam/config/install.log. Assuming success a Configuration Complete! view will appear, providing a link to the login page.
+						When the configuration completes, click Proceed to Login, and then login as TOR-SSO administrator.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+* 3 Manual Configuration of TOR-SSO
+
+	This document is to show the steps needed to manually configure TOR-SSO and the corresponding Policy Agent to protect the TOR Launcher product under the Single Sign On solution. It makes the following assumptions:
+	
+	* LITP installed and deployed on Blade
+	
+	* Apache httpd 2.2 installed on a Managed Node with a Fully Qualified Domain Name
+
+	* JBoss EAP 6 installed on same managed node
+
+	* TOR-SSO .war file deployed on JBoss and initially configured (LDAP, administrator password, cookie domain)	
+
+** Realm Creation
+
+	The <<Realm>> is the main logical seperation of configurations in TOR-SSO. By default, there is a root realm (denoted by <<</>>>), but it is good practice to create sub-realms and place configurations in there, since sub-realms inherit configurations from their parent.
+
+	Log into TOR-SSO as <<amAdmin>> and navigate to <<Access Control>>. If there is only one realm, the Root realm, we need to configure a sub-realm that will hold all our configurations in one logical collection.
+
+	Click on <<New>>, enter the name of the realm and click Ok in the top right of the screen. The new realm should be created and shown in the table of realms under Access Control
+
+*** Referral
+
+	Because we are working with sub-realms, we need to define a <<Referral Policy>> in the root realm to refer to our sub-realm.
+
+	Navigate to <<Access Control>> -\> <</ (Top Level Realm)>> -\> <<Policies>> and click on <<New Referral>>. Provide the name of the referral policy.
+
+	Click on <<New>> in the first table , select <<URL Policy Agent>> and click Next to define our referral rule. Typically the URL rule will catch everything on the server that you want to protect, and you an use wildcards:
+
++-------------------------+
+http://host:80/*
++-------------------------+
+
+	In the second table, click on <<New>> to create a new referral policy. Enter the name of the policy, select the desired realm from the combobox and click <<Finish>>
+
+	Once you are back on the <<New Referral>> screen, click Ok in the top right of the screen.
+
+** Agent Profile
+
+[../images/openam/new-agent.png]
+
+	For a Policy Agent to be able to talk to TOR-SSO and perform Single Sign On, there needs to be an Agent Profile declared in TOR-SSO. Click on the name of the new Realm you created (we'll call ours <<FREJA>>), navigate to the <<Agents>> tab.
+
+	We will create a profile for a Web Policy Agent, so confirm that you are on the Web tab and click on <<New>> in the table of agent profiles.
+
+	[Name] Unique name for this profile
+
+	[Password] This needs to be remembered for when we install the Policy Agent
+
+	[Configuration] Centralised configuration means that the configuration properties for the Web Agent profile is stored in the TOR-SSO server itself. Local configuration means that the Web Agent policy agent looks to a local configuration file for its configuration
+
+	[Server URL] The URL qualified URL of the TOR-SSO server
+
+	[Agent URL] The fully qualified URL of the Web Server that will be protected by the Web Policy Agent (with port number, i.e., 80)
+
+** Subjects
+	
+	TOR-SSO talks directly to the LDAP instance behind it and can pick up users and groups, but you may want to define extra groups
+
+** Policies
+
+	This is where the main configuration will take place. Here you define how you want access to a protected resoure to be controlled. Navigate to <<Access Control>> -\> <<FREJA>> -\> <<Policies>>
+
+	The steps are similar to creating the Referral Policy as above, except we choose <<New Policy>> rather than New Referral. Since we chose to refer this policy using a URL Policy Agent, this is the only option. The next page allows you to choose the resources you wish to protect, and can inherit them from the referral policy. Choose whether you want to allow or deny GET or POST actions, and click Finish.
+
+	Under <<Subjects>>, you can define the authorization policies. For now, we'll select <<Authenticated Users>> - anyone who authenticates themselves with TOR-SSO is allowed access.
+
+* 4 Installation of Apache 2.2 Web Policy Agent
+
+	This is where we install the policy agent on the web server that is hosting the content we wish to protect. This essentially consists of an Apache httpd module and some configuration files.
+
+	The first step is to stop the httpd web server:
+
++-------------------------+
+service httpd stop
++-------------------------+
+
+	Download the latest stable web policy agent for Apache http 2.2 from {{{http://www.forgerock.org/openam.html}Forgerock's download page}}. <<N.B.>> The filecomes as a .zip archive and needs the <<unzip>> package to extract it. Extract the archive to a suitable folder - this is where the Policy Agent will consider it's home, e.g., <<</var/opt/policy-agents>>>. Once extracted, the agent's home directory will be something like
+
++-------------------------+
+/var/opt/policy-agents/web_agents/apache22_agent
++-------------------------+
+
+	Next, we can define an automated response file for the install script. The following is just an example to demonstrate the format.
+
++-------------------------+
+# Agent User Response File
+CONFIG_DIR= /etc/httpd/conf
+AM_SERVER_URL= https://your.tor-sso.domain.name:80/tor-sso
+AGENT_URL= http://your.tor.domain.name:80
+# AGENT_PROFILE_NAME is the agent profile described above
+AGENT_PROFILE_NAME= TOR
+AGENT_PASSWORD_FILE= /tmp/pass.txt
++-------------------------+
+
+	<<</tmp/pass.txt>>> contains the password we used when we defined the agent profile earlier. Either delete it after running the script, or protect it on the file system appropiately.
+
+	Save the above file, e.g. <<<tor-policy-agent.conf>>>
+
+	Next we can run the script with the following command:
+
++-------------------------+
+/path/to/agent/bin/agentadmin --install --useResponse /path/to/tor-policy-agent.conf
++-------------------------+
+
+	You will be prompted to read and accept the Licence Agreement. Should you need to uninstall and reinstall the agent for any reason, you will not be prompted again. Type n to finish reading, then Enter to accept the agreement.
+
+	Once the policy agent successfully installs, you should see a success message and a location where to check the installer log files.
+
+	A post-installation step is required since we are configuring this policy agent to talk t a sub-realm of TOR-SSO. We need to edit the file <<</path/to/policy-agent/Agent-00X/config/OpenSSOAgentBootstrap.properties>>> to point to the sub-realm (it is set to the Top Level Realm / by default). Our realm is called <<FREJA>>, so the file entry looks like this:
+
++-------------------------+
+com.sun.identity.agents.config.organization.name = /FREJA
++-------------------------+
+
+	Since SELinux is enabled on LITP, we'll need to tell the system to allow httpd to load the module that we've just installed, and to allow it to read the configuration files.
+
+	Allow httpd to connect to the network:
+
++-------------------------+
+setsebool httpd_can_network_connect true
++-------------------------+
+
+	We also have to change the security context of the configuration files, along with the log and debug files, since httpd will write to these also:
+
++-------------------------+
+chcon -u system_u -t httpd_config_t /path/to/Agent_00X/config/*
+chcon -u system_u -t httpd_modules_t /path/to/policy-agent/lib/*
+chcon -R -t httpd_log_t /path/to/policy-agent/Agent-00x/logs
++-------------------------+
+
+	Once all these steps are completed, restart the httpd server:
+
++-------------------------+
+service httpd start
++-------------------------+
+
+	The web server is now protected by the Policy Agent, and all requests to it will have to be authenticated by TOR-SSO, and satisfy the access policies defined by TOR-SSO.
+
+	You can test the installation by attempting to visit a URL - you should be redirected automatically to a login screen. Enter valid credentials, and if you username matches that of one in the LDAP server, and your policy allows it, you will be redirected to the original target you requested. If you are not authorized, you will see the standard 403 error page of the web server.
+
+=========================
+
+* References
+
+	* {{http://docs.forgerock.org/en/openam/10.0.0/install-guide/index.html}}
+
+	* {{https://wikis.forgerock.org/confluence/display/openam/Web+Policy+Agent+for+Apache+2.2+Installation+Guide}}

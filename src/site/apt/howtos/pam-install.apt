@@ -1,0 +1,53 @@
+		-----------------------------------------
+		SSO PAM on OSS-RC - EC Installation
+		-----------------------------------------
+					Declan Ryan
+					---------------
+					  2013-02-18
+
+SSO PAM - EC Install
+
+=========================================
+
+	The SSO PAM is deploymed on the OSS-RC UAS. The EC is stored in GASK at : {{{http://gask2web.ericsson.se/pub/get?DocNo=19089-CXP9023098&Lang=EN&Rev=A&Format=UNIX_TAR_COMPRESS}}} .
+	
+	The SSO module must be installed on every UAS connected to the system. It cannot be installed on a subset of the UASs or just on the farm master. 
+	
+	The product number for the SSO PAM is CXP 902 3098. 
+
++---------------------------------+
+Directory to store the EC : /var/tmp/pam_ec
+Access needed : root
+
++---------------------------------+
+
+	Download the EC from gask and copy it to /var/tmp/pam_ec. Extract the gz, and the subsequent tar, and run the following :
+
++---------------------------------+
+/var/tmp/pam_ec/ec_install.sh
++---------------------------------+
+
+	There are no arguments passed into the script
+
+===========================================
+
+* Install script
+
+	* The script does the following on a UAS
+
+		[[1]] Verifies that you are on a UAS and that you are logged in as root
+		
+		[[2]] Install OpenSSL 1.0.0.j
+		
+		[[3]] Copies the master server file to /var/tmp/masterkey
+		
+		[[4]] Creates the counter file /var/tmp/counter and sets an initial value
+		
+		[[5]] Copies the libpam_ericsson_sso.so binary to /usr/lib/security/ 
+		
+		[[6]] Runs crle to add /usr/sfw/lib to the standard runtime linking environment so that the PAM will be able to source the correct libraries
+		
+		[[7]] Copies the standard pam.conf from a UAS, with the addition of the SSO pam to /etc/pam.conf
+		
+		[[8]] Runs pkill -HUP inetd. This will force the inet services like login etc.. to pick up the additions to the linking environment
+

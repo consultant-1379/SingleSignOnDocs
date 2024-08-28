@@ -1,0 +1,42 @@
+		----------------------------------
+				Upgrade Script Description
+		----------------------------------
+				Brian Gunning
+		-----------------------------------
+				2013-03-12
+
+SSO Upgrade Script - Interwork Description
+
+===================
+
+* Introduction
+
+	The upgrade procedure for SSO differs from other products as it is a third party product that is not based on TOR ServiceFramework. In order to faclitate a Core Middleware controlled upgrade
+	as per ServiceFramework based applications SSO implements this script that will be called by LITP as part of the upgrade.
+
+* Purpose of Script
+
+	SSO is not deployed in a cluster as per other TOR services. It is deployed in active/active-standby mode with only one SSO instance ever in service. In a HA scenario SSO fails over to the standby SSO instance. This script will verify the current health of both SSO instances and if it finds both to be operational it will return 0 to indicate it is OK to upgrade. If it detects any issue with either the active or inactive SSO instances it will return 1 to indicate it is not OK to upgrade as it is not safe to fail over.
+
+** Restrictions
+
+	SSO has no control on which SC gets called to upgrade first.
+
+** Parameters
+
+	None
+
+
+** Exit Codes
+
+
+*----------*----------------*----------------*
+| Exit Code| Description    | Comment		 |
+| 	 	   | 		        | 		         |
+*----------*----------------*----------------*
+| 0 	   | OK to upgrade  | 		         |
+*----------*----------------*----------------*
+| 1 	   | NOK to upgrade | 		         |
+*----------*----------------*----------------*
+Exit Codes
+

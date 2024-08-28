@@ -1,0 +1,61 @@
+		---------------------------------------------------------------
+		Application Guide for YMER applications to understand what is needed to conform with SSO
+		---------------------------------------------------------------
+								Adam Szigeti
+		---------------------------------------------------------------
+								2013-03-11
+
+Application Guide for YMER applications to understand what is needed to conform with SSO
+
+========================================================
+
+* Scope
+
+	This document describes how to provide Single Sign On for YMER applications.
+
+* Requirements
+
+	* The user is using LITP and YMER architecture.
+
+	* The GUI of the application is web based and can be accessed through the TOR launcher.
+	
+	* The YMER application's life cycle is managed as follows by the {{{http://confluence-oss.lmera.ericsson.se/display/TORFTUI/App+Container}UI App Container}}
+
+	* YMER application's business logic is behind the YMER reverse proxy and running on JBoss, or otherwise it can also be a JSE implementation.
+
+* SSO Compatibility
+
+	* For an YMER application to be SSO compatible it must have a URL pattern that conforms with the SSO component's protected resource name which means 
+	it has to be under "http://{{{http://en.wikipedia.org/wiki/Fully_qualified_domain_name}FQDN}}/".
+	
+	* The application has to be present in the launcher so after logging in the launcher the application can be launched without any further login.
+
+* Architectural Overview
+
+	All YMER applications running on Jboss/JSE behind the YMER reverse proxy are implicitly protected by TOR SSO.
+	The TOR SSO component contains a policy that is referring to the following url patterns : "http://FQDN/*" and "http://FQDN/*?*".
+	That pattern will protect everything under "http://FQDN/" so any requests to an application "http://FQDN/Application" will be   
+	intercepted by the SSO component and the user will be redirected to the TOR Login page where he/she has to provide valid credentials in order to login.
+	
+** Authentication
+
+	* The TOR SSO will authenticate the users against the OSS-RC COMInf LDAP. 
+	
+	* The applications are expected to rely on this authentication mechanism instead of providing their own solution.
+	
+	* If the application has its own authentication method then it DOES NOT fit into the TOR SSO solution.
+	
+	[]
+	
+	Note that when the user types in "http://FQDN/Application" the request goes to apache and the appropriate ReWrite and ProxyPass rules are 
+	responsible for redirecting the request to the Jboss instance where the Application can be found.
+	
+	After successfully logging in at the TOR login page the user is redirected to the application.
+	
+	Logging in any application will create a session for the user so launching other YMER applications will not require further login.
+	
+	
+	
+	
+	
+	

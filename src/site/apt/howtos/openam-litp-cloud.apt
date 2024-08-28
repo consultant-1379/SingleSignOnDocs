@@ -1,0 +1,48 @@
+		-------------------------------------
+		OpenAM LITP cloud instance Sprint 18)
+		-------------------------------------
+				Alex McAllister
+				---------------
+				   2012-12-14
+
+OpenAM installation on LITP Cloud Instance
+
+=============================
+
+* Scope
+
+	This document shows the steps involved in installing the OpenAM Single Sign On platform on a JBoss container deployed in a LITP environment.
+
+* Environment
+
+	OpenAM was installed on the following environment:
+
+	* LITP Sprint 18 (cloud instance)
+
+	* OpenAM 10.0.0
+
+	* Apache Policy Agent 3.0
+
+* Overview
+
+	Migrating the OpenAM/Policy Agent setup to LITP covers the following areas:
+
+	* SELinux configuration
+
+	* Firewall rules (iptables)
+
+	* HTTP tunnelling (/etc/hosts entries)
+
+	* Java versions
+
+	As well as these new issues, the following ares need to be addressed:
+
+	* Apache httpd configuration
+
+	* JBoss preperation
+
+	* OpenAM installation and configuration
+
+	* Policy Agent installation and configuration
+
+	

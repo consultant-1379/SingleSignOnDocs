@@ -1,0 +1,40 @@
+		---------------------------------------------------------------------
+		OpenAM installation on LITP
+		---------------------------------------------------------------------
+							Dobromir Petrov
+							---------------
+							   2012-10-23
+
+OpenAM installation on LITP
+
+========================================================
+
+* Scope
+
+	This document describes the current technical issues that are presented by the LITP installation.
+
+* OpenAM installation issue
+
+	* Before installing OpenAM you must make sure that the machine has a valid domain name. 
+	
+	* It is recommended to install OpenAM on SC1/2 which currently has no DNS setup. There is a DNS setup only for the MS.
+	The temporally workaround is to reset the DNS to point to SC1 and map the SC1 hosts file to this domain main. This is to be fixed in future. 
+		
+* OpenAM deployment on JBoss issue
+
+	* Jboss container in LITP does not deploy applications automatically. Each war/ear that is placed in JBOSS_HOME/standalone/deployments folder
+	must be manually deployed by executing CLI command like in the following example while the container is running:
+		
++-------------------+
+	/opt/jboss-eap/bin/jboss-cli.sh --controller=10.45.231.203:10103 --connect --user=jboss-eap --password=jboss-eap -c "deploy /opt/jboss-eap/standalone/deployments/openam.war, deployment-info --name=openam.war"
++-------------------+	
+	
+	* All ports are also blocked and any offseting will result in timeout exception. To disable this use command:
+
++-------------------+	
+	service iptables stop
++-------------------+	
+
+* JBoss Preparation 
+	
+	Refer to the provided documentation at: {{{https://arm1s11-eiffel004.eiffel.gic.ericsson.se:8443/nexus/content/sites/tor/SingleSignOn_Documentation/1.0/howtos/openam.html} Install OpenAM on CentOS }}

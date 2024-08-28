@@ -1,0 +1,193 @@
+		--------------
+		OpenAM and rsyslog
+		--------------
+		Alex McAllister
+
+
+Investigation into OpenAM and rsyslog
+
+=============================
+
+* Resources
+
+	* {{http://jira-oss.lmera.ericsson.se/browse/TORFTUISSO-580}}
+
+	* {{http://sources.forgerock.org/cru/CR-1196}}
+
+	* {{http://sources.forgerock.org/action/jira-issue.do?key=OPENAM-2111}}
+
+	* {{http://www.rsyslog.com/doc/manual.html}}
+
+	* {{http://confluence-oss.lmera.ericsson.se/display/DMS/Tor+Security}}
+
+* Areas of Investigation
+
+	* Can the patch provided by {{http://sources.forgerock.org/cru/CR-1196}} be applied to version 10.0.0 (our current stable version)?
+
+	* Do we wait for a stable version of 10.2.0 to be released and apply patch there?
+
+	* Do we attempt to implement a workaround in the meantime?
+
+* Expected Outcomes of Investigation
+
+	[[1]] Investigate the open questions
+
+	[[2]] Document the spike outcome
+
+	[[3]] Implementation stories added in backlog
+
+* Open Questions
+
+	[[1]] Can we use the OpenAM patch for rsyslog (above link)?
+
+	[[2]] If we can use the patch then we will wait till it gets released and skip the rest
+
+	[[3]] How can we ask openAM to log under /var/log/sso/ ?
+
+		[[a]] Can rsyslog pick that up?
+
+		[[b]] Can log viewer pick that up?
+
+	[[4]] What dimensions (e.g. disk space) are needed for 90 days retention? (for up to 3000 users, 3 sessions per user per day)
+
+	[[5]] How to configure OpenAM to do the roll over (daily with retention for 90 days)? Or could we configure rsyslog to do this roll over?
+
+	[[6]] If we write our own wrapper, rsyslog format should be same as the service fwk recoding API format
+
+		[[a]] Could we call their API?
+
+		[[b]] Could we re-use sfwk code?
+
+* Requirements
+
+	[[1]] 90 days logging data needs to be stored
+
+	[[2]] No exact requirement on Latency - the time between log generation and available at ryslog interface. It doesn't have to be real-time. But the time stamps must always be correct and visible.
+
+	[[3]] Log format
+
+		{{http://sources.forgerock.org/cru/CR-1196#CFR-50918}} (Comments from Forgerock code)
+
++--------------------------------+
+		42	/*
+		43	Fields of syslog message are:
+		44	
+		45	 - priority (facility * 8 + priority)
+		46	 - version (constant "1" for now)
+		47	 - timestamp (format derived from RFC3339, we use LogRecord's timestamp)
+		48	 - hostname (InetAddress.getLocalHost().getHostName() with AM_SERVER_HOST system property as a default)
+		49	 - app-name (device or application id, we use deployment descriptor from system proeprty)
+		50	 - proc-id (change of this value indicates discontinuity in logs and groups records from the same process,
+		51	 we use hash code of SystemProperties class)
+		52	 - msg id (type of message, LogConstants.MESSAGE_ID from info map or - (nil-value))
+		53	 - structured data (keys and values from info map, expressed as one SD-ELEMENT with "logRecord@36733" as SD-ID.
+		54	 36733 is IANA enterpriseId of Forgerock AS)
+		55	 - log message.
+		56	
+		57	As the structured data field is capable of expressing all the key-value pairs from info map, we include all keys except
+		58	those that are listed in allFields configuration option and not in selectedFields.
+		59	
+		60	*/
++--------------------------------+
+
+========================
+
+* Investigation Results
+
+** Can we use the OpenAM patch for rsyslog (above link)?
+
+	It is not possible to apply the patch for 10.2 to 10.0. The OpenAM project migrated from Ant to Maven in the meantime and the source tree has been re-organised significantly. Therefore it is not feasible to apply this patch here.
+
+	The patch applies to version 10.1 if the location of the file amLogging.properties is updated (svn -p0 applied successfully), so the next step is to test a build with this patch applied and see how we can configure OpenAM to use rsyslog.
+
+	<<UPDATE>> Testing for this will take too long as there could be any number of unforseen side-effects of applying a patch for a later version to an earlier version
+
+** How can we ask OpenAM to log under /var/log/sso/ ?
+
+	OpenAM can be configured at install time to send logs to any directory. It is also possible to configure the format of these logs to some extent, possibly making a migration to rsyslog using some workaround a bit easier. Log rotation is also possible as is the ability to set the rotate interval (in minutes) and the log file size.
+
+	Command to update logging settings:
+
+--------------------------------
+${SSO_HOME}/bin/sso.sh config set-attr-defs --servicename iPlanetAMLoggingService --schematype global --datafile newconfig.txt
+--------------------------------
+
+	where <<<newconfig.txt>>> is a properties file in Java format. Sample:
+
+--------------------------------
+iplanet-am-logging-location=/var/log/sso
+--------------------------------
+
+	The full list of available options can be viewed {{{./logging-options.html}here}}
+
+	Next step is to configure LogViewer on a system controlled by SSO to see if it can pick up files from this new location
+
+	<<UPDATE>> Even if LogViewer (LogStash) can pick these up using a "file" plugin if it exists, it is not enough since the logs won't be forwarded onto rsyslog
+
+*** Can rsyslog pick that up?
+
+	We will not investigate a JEE/JSE solution to listen to log files and redirect them, but rather implement a Linux solution to log locally to syslog, which will be picked up by rsyslog
+
+*** Can log viewer pick that up?
+
+	Log viewer is configured to import logs from syslog
+
+** What dimensions (e.g. disk space) are needed for 90 days retention? (for up to 3000 users, 3 sessions per user per day)
+
+	Awaiting results of regression test run 25-04-2013 - will extrapolate amounts
+
+** How to configure OpenAM to do the roll over (daily with retention for 90 days)? Or could we configure rsyslog to do this roll over?
+
+	Using the command example above, we can configure this easily:
+
+--------------------------------
+${SSO_HOME}/bin/sso.sh config set-attr-defs --servicename iPlanetAMLoggingService --schematype global --datafile newconfig.txt
+--------------------------------
+
+	The options file is like this:
+
+--------------------------------
+iplanet-am-logging-location=/var/log/sso
+openam-logging-file-rotation=1440
+openam-logging-file-suffix=-MM.dd.yy-kk.mm
+--------------------------------
+
+	Here, the <<<openam-logging-file-rotation>>> property is in minutes, meaning these logs will be rotated daily with a suffix of <<<MM.dd.yy-kk.mm>>>
+
+	<<N.B.>>This form of rotation does not suit our needs out of the box since it appends the live log file with the suffix as well, meaning that running <<tail -F>> on the live file will not follow the current log without another script to maintain a symlink to the current live file based on the daily timestamp.
+
+	Another option being investigated is to limit the log file size for each log in <<<${OPENAM_HOME}/log/>>> and let the local logger take care of the rotation. Local syslogs are being forwarded to rsyslog as per configuration. When the OpenAM log file reaches its limit, the file is overwritten but the tail is still following the correct name. <<UPDATE>> This solution is not viable since tail will be interrupted when the file is overwritten the first time
+
+	On configuring rsyslog to do this rollover, this is likely not possible since the logs themselves are not managed by rsyslog. Syslog will take care of rotating its own files which will contain the OpenAM access logs, and OpenAM will rotate the source files itself for archiving
+
+** If we write our own wrapper, rsyslog format should be same as the service fwk recoding API format
+
+	We will not be implementing a Java-based wrapper solution for this problem.
+
+** Latency
+
+	For standard access/error log latency, the files are updated about 10-20 seconds after login attempt is made (observed from running <<<tail -f ${LOG_FILE}>>>)
+
+=============================
+
+* Solution
+
+	Two scripts are needed: one to monitor the log files and send the output to the local syslog, and another to maintain a set of symbolic links to the current "live" log file for each of the "access" and "error" log files. These scripts will be deployed as one LSB service with an SI - SI dependency on the SSO Service Group. Core Middleware will then manage the high-availability for this service
+
+** Script One - Maintain symbolic links
+
+	Mainly based on example in {{{http://stackoverflow.com/questions/3416467/how-to-tail-f-the-latest-log-file-with-a-given-pattern}this response}} on Stack Overflow
+
+** Script Two - Monitor OpenAM access log files
+
+	Will consist basically of an infinite loop running <<<tail -F $CURRENT_LOG_FILE>>> for each of *.access and *.error in /var/log/sso
+
+	Will use <<<awk>>> to provide some basic formatting for syslog - re-ordering certain columns and ignoring others
+
+** User Stories
+
+	* {{{http://jira-oss.lmera.ericsson.se/browse/TORFTUISSO-684}TORFTUISSO-684 As a TOR SSO user I want SSO configured to send logs to /var/log and have them rotated so I can redirect the logs to syslog in order to view them in Log Viewer}}
+
+	* {{{http://jira-oss.lmera.ericsson.se/browse/TORFTUISSO-685}TORFTUISSO-685 As a TOR SSO user I want a script to monitor SSO access logs so I can redirect the logs to syslog in order to view them in Log Viewer}}
+
+	* {{{http://jira-oss.lmera.ericsson.se/browse/TORFTUISSO-686}TORFTUISSO-686 As a TOR SSO user I want the log script implemented as an LSB component so it can be highly available}}

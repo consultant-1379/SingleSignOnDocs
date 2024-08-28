@@ -1,0 +1,88 @@
+		-----------------------------------------
+		OpenAM Logging Service Congifuration Options
+		-----------------------------------------
+					Alex McAllister
+					---------------
+					  2013-04-19
+
+OpenAM Logging Service Congifuration Options
+
+=========================================
+
+	Put these options into a plain text file and call it with this command (ERICsinglesignon_CXP9022934 version >= 1.3.20):
+
+---------------------------------
+${SSO_HOME}/bin/sso.sh config set-attr-defs --servicename iPlanetAMLoggingService --schematype global --datafile newconfig.txt
+---------------------------------
+
+---------------------------------
+iplanet-am-logging-allfields=ContextID
+iplanet-am-logging-allfields=Domain
+iplanet-am-logging-allfields=HostName
+iplanet-am-logging-allfields=IPAddr
+iplanet-am-logging-allfields=LoggedBy
+iplanet-am-logging-allfields=LoginID
+iplanet-am-logging-allfields=LogLevel
+iplanet-am-logging-allfields=MessageID
+iplanet-am-logging-allfields=ModuleName
+iplanet-am-logging-allfields=NameID
+iplanet-am-logging-archiver-class=com.sun.identity.log.spi.Archiver
+iplanet-am-logging-authz-class=com.sun.identity.log.spi.ISAuthorizer
+iplanet-am-logging-buffer-size=25
+iplanet-am-logging-buffer-time-in-seconds=60
+iplanet-am-logging-db-driver=oracle.jdbc.driver.OracleDriver
+iplanet-am-logging-db-formatter=com.sun.identity.log.handlers.DBFormatter
+iplanet-am-logging-db-password=
+iplanet-am-logging-db-user=dbuser
+iplanet-am-logging-debug-class=com.sun.identity.log.spi.ISDebug
+iplanet-am-logging-elf-formatter=com.sun.identity.log.handlers.ELFFormatter
+iplanet-am-logging-file-handler=com.sun.identity.log.handlers.FileHandler
+iplanet-am-logging-file-read-handler=com.sun.identity.log.handlers.LogReadFileHandler
+iplanet-am-logging-files-per-keystore=5
+iplanet-am-logging-jdbc-handler=com.sun.identity.log.handlers.DBHandler
+iplanet-am-logging-location=%BASE_DIR%/%SERVER_URI%/log/
+iplanet-am-logging-logfields=ContextID
+iplanet-am-logging-logfields=Domain
+iplanet-am-logging-logfields=HostName
+iplanet-am-logging-logfields=IPAddr
+iplanet-am-logging-logfields=LoggedBy
+iplanet-am-logging-logfields=LoginID
+iplanet-am-logging-logfields=LogLevel
+iplanet-am-logging-logfields=MessageID
+iplanet-am-logging-logfields=ModuleName
+iplanet-am-logging-logfields=NameID
+iplanet-am-logging-log-list=
+iplanet-am-logging-max-file-size=10000
+iplanet-am-logging-max-records=500
+iplanet-am-logging-num-hist-file=1
+iplanet-am-logging-remote-formatter=com.sun.identity.log.handlers.RemoteFormatter
+iplanet-am-logging-remote-handler=com.sun.identity.log.handlers.RemoteHandler
+iplanet-am-logging-secure-certificate-store=%BASE_DIR%/%SERVER_URI%/Logger.jks
+iplanet-am-logging-secure-elf-formatter=com.sun.identity.log.handlers.SecureELFFormatter
+iplanet-am-logging-secure-file-handler=com.sun.identity.log.handlers.SecureFileHandler
+iplanet-am-logging-secure-log-helper-class-name=com.sun.identity.log.secure.SecureLogHelperJCEImpl
+iplanet-am-logging-secure-signing-algorithm=SHA1withRSA
+iplanet-am-logging-secure-timestamp-generator=com.sun.identity.log.spi.SecureTimestampGenerator
+iplanet-am-logging-security-module-name=secmod.db
+iplanet-am-logging-security-status=OFF
+iplanet-am-logging-signature-period-in-seconds=900
+iplanet-am-logging-time-buffering-status=ON
+iplanet-am-logging-token-class=com.sun.identity.log.spi.SSOTokenProvider
+iplanet-am-logging-type=File
+iplanet-am-logging-verifier-action-class=com.sun.identity.log.spi.ISVerifierOutput
+iplanet-am-logging-verify-period-in-seconds=3600
+logstatus=ACTIVE
+openam-logging-file-prefix=
+openam-logging-file-rotation=-1
+openam-logging-file-suffix=-MM.dd.yy-kk.mm
+resolveHostName=false
+Schema attribute defaults were returned.
+serviceObjectClasses=iplanet-am-logging-service
+sun-am-logging-db-max-in-mem=2
+sun-am-logging-db-read-handler=com.sun.identity.log.handlers.LogReadDBHandler
+sun-am-logging-mysqldbdata-fieldtype=LONGTEXT
+sun-am-logging-mysql-dbdate-format=%Y-%m-%d %H:%i:%s
+sun-am-logging-oradbdata-fieldtype=CLOB
+sun-am-logging-ora-dbdate-format=YYYY-MM-DD HH24:MI:SS
+sun-am-log-level=INFO
+---------------------------------

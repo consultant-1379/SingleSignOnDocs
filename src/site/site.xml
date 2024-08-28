@@ -1,0 +1,100 @@
+<project xmlns="http://maven.apache.org/DECORATION/1.0.0"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/DECORATION/1.0.0 http://maven.apache.org/xsd/decoration-1.0.0.xsd">
+
+	<bannerLeft>
+		<name>Single Sign On</name>
+		<src>images/sso-new.png</src>
+		<href>${project.documentation.url}</href>
+	</bannerLeft>
+	<bannerRight>
+		<src>images/logo.png</src>
+	</bannerRight>
+
+	<body>
+
+		<links>
+			<item name="Nexus" href="${nexus.url}"/>
+			<item name="JIRA" href="${jira.url}"/>
+			<item name="Ericsson" href="http://www.ericsson.com"/>
+		</links>
+
+		<menu name="Single Sign On">
+
+			<item name="Home" href="/"/>
+
+		</menu>
+
+		<menu name="SSO WoW">
+
+			<item name="GIT" href="/wow/git.html"/>
+			<item name="Troubleshooting" href="/wow/saml-troubleshooting.html"/>
+			<item name="DofD" href="/wow/dod.html"/>
+			<item name="Design Decisions" href="/design/"></item>
+			<item name="Scripting Guidelines" href="/wow/scipting.html"></item>
+			<item name="Tips and Tricks" href="/wow/tipsandtricks.html"></item>
+			<item name="Team Hardware" href="/wow/hardware.html"></item>
+
+		</menu>
+
+		<menu name="Investigations">
+
+			<item name="Logging" href="/investigations/rsyslog.html"/>
+			<item name="Authz Tomcat" href="/investigations/decouple-tomcat.html"/>
+			<item name="Authz Glassfish" href="/investigations/decentralised-authorization.html"/>
+			<item name="Policy Agent and External IdP" href="/investigations/policyagent-externalizedIdP.html"/>
+
+		</menu>
+
+		<menu name="How To Guides">
+
+			<item name="SSO PAM" href="/howtos/pam-install.html"/>
+			<item name="Application Guide for YMER applications" href="/howtos/application-guide.html"/>
+			<item name="Deploying SSO Development Server" href="/howtos/deploy-server.html"/>
+			<item name="Upgrading SSO RPMs" href="/howtos/upgrade-sso.html"/>
+			<item name="SSL - how it works" href="/howtos/ssl.html"></item>
+
+		</menu>
+
+		<menu name="Release Docs">
+
+			<item name="SSO Deployment" href="/release/deployment-guide-sso.html"/>
+			<item name="Security Service Deployment" href="/release/deployment-guide-sec.html"/>
+			<item name="Failover Script IWD" href="/release/failover-health-check.html"/>
+			<item name="Upgrade Script IWD" href="/release/upgrade-health-check.html"/>
+			<item name="Upgrade Certificates" href="/release/upgrade-certificates.html"/>
+			<item name="Func Spec" href="/release/func-spec.html"/>
+			<item name="SAG" href="/release/sag.html"/>
+			<item name="SAD" href="/release/sad.html"/>
+			<item name="IWD" href="/release/iwd.html"/>
+
+		</menu>
+
+		<menu name="Archive">
+			<item name="Deployment Definition" href="/howtos/definition.html"/>
+			<item name="SSO Environment Prep" href="/howtos/sso-environment.html"/>
+			<item name="Policy Agent Silent Install" href="/howtos/agent-silent.html"/>
+			<item name="Installation and Configuration Directories" href="/howtos/locations.html"/>
+			<item name="Installation Guide" href="/howtos/install-guide.html"/>
+			<item name="OpenAM on CentOS" href="/howtos/openam-centos.html"/>
+			<item name="OpenAM on LITP" href="/howtos/openam-litp.html"/>
+			<item name="OpenIG Federation" href="/howtos/federated-gateway.html"/>     
+			<item name="Install Tomcat Policy Agent" href="/howtos/tomcat-agent.html"/>
+		</menu>
+		
+	</body>
+
+	<skin>
+		<groupId>org.apache.maven.skins</groupId>
+		<artifactId>maven-fluido-skin</artifactId>
+		<version>1.2.2</version>
+	</skin>
+
+	<custom>
+		<fluidoSkin>
+			<sourceLineNumbersEnabled>false</sourceLineNumbersEnabled>
+			<topBarEnabled>true</topBarEnabled>
+		</fluidoSkin>
+	</custom>
+
+</project>

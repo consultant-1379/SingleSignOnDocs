@@ -1,0 +1,218 @@
+		--------------
+		OpenIG - Federation Gateway
+		--------------
+
+
+OpenIG - Federation Gateway
+
+===
+
+Introduction
+
+* OpenIG Gateway
+
+	The underlying core of ForgeRock Open Identity Gateway is based on a reverse proxy architecture. All HTTP traffic to each protected application is routed through OpenIG, enabling close inspection, transformation and filtering of each request. 
+	By inspecting the traffic, OpenIG is able to intercept requests that would normally require the user to authenticate, obtain the user's login credentials, and send the necessary HTTP request to the target application, thereby logging in the user without modifying or installing anything on the application. 
+	In its simplest form and basic configuration, OpenIG is a Java-based reverse proxy which runs as a web application.  OpenIG can be configured as a SAML2 endpoint and this functionality is explored in this document using <Tomcat> as the web container.
+
+
+* OpenIG Federation Gateway
+
+	The Federation component of OpenIG is a standards based authentication service used by OpenIG to validate a user and retrieve key attributes of the user in order to log them into the target applications. 
+	There are two ways the Federation Service can be invoked:
+	
+	IDP initiated SSO, where the remote Identity Provider sends an unsolicited Authentication statement to OpenIG
+	SP initiated SSO where OpenIG calls the Federation Service to initiate Federated SSO with the Identity provider
+
+	In either case, the job of the Federation Service is to validate the user and pass the required attributes to OpenIG to log the user into target applications.	
+
+
+[../images/federate-any-app.png] Federated Applications
+
+
+
+
+* Federation Gateway Service Provider Initiated SAML2 SSO (including auto login to remote login page)
+
+
+	The figure below is a general example illustrating the OpenIG Federation Gateway providing SAML2 endpoint features acting as Service Provider in an SP initiated single sign-on configuration. In this sample, company myHR is an outsourced provider of HR services and has started seeing increased demand for SAML2 support in their core application. The companies to which they outsource are refusing proprietary means of authentication and demanding the widely accepted SAML2 standard. myHR is not in a position to modify their application to support SAML2 nor do they have the time or money to integrate and deploy all of OpenAM. With OpenIG Federation Gateway, myHR deploys OpenIG in front of their HR application, configures it as a SAML2 endpoint for SP initiated SSO, and configures it to log users into the HR application upon successful verification of the SAML2 assertion from their customers.
+
+
+[../images/sp-initiated-sso.png] Service Provider Initiated SSO
+
+
+How To Guide
+
+* Prerequistes
+
+	[[1]] Tomcat 6 installed
+
+	[[2]] OpenAM 10.0.0 installed
+
+	[[3]] Java Version 6
+
+	[]
+
+* Installation
+
+	<<Configure Tomcat>>
+
+	Configure Tomcat to listen on the same port and protocol of the application you are protecting with OpenIG. If the application listens on both an HTTP and an HTTPS port Tomcat must be configured to do so as well. 
+	
+	<<Downloand and Deploy WAR file>>	
+	
+	Before installing OpenIG, ensure the Java version is correct (1.6)
+	
+	
++----+
+
+$ java -version
+java version "1.6.0_24"
+Java(TM) SE Runtime Environment (build 1.6.0_24-b07-334-9M3326)
+Java HotSpot(TM) 64-Bit Server VM (build 19.1-b02-334, mixed mode)
+
++----+
+
+	[[1]]Download the OpenIG 2.1 (Federation)war file (currently gateway-fed-2.1.0.war) from the {{{http://www.forgerock.org/openig.html}OpenIG download page}}
+
+	[[2]]Deploy the .war to the root context of the web application container i.e. delete the existing ROOT folder, rename gateway-fed-2.1.0.war to ROOT.war and copy into TOMCAT_HOME\\webapps.
+
+	[[3]]Copy the contents of file config.json below and save as HOME\\.ForgeRock//OpenIG\\config.json. Edit the config.json with the IP address, port number and FQDN of your target application. The file below is configured to protect to the ParameterCheck application on atrcxb1395 (10.45.206.74:8080)
+    
+    	[[i]] On Windows, the configuration files belong in %appdata%\\ForgeRock\\OpenIG. To locate the %appdata% folder on Windows, open Windows Explorer, type %appdata% as the file path, and press Enter.  The ForgeRock\\OpenIG\\ folder should be created there, and then copy the configuration files.  
+	
+	<<config.json>>	
+	
++---+
+{
+  "heap": {
+    "objects": [
+    {
+        "name": "LogSink",
+        "comment": "Default sink for logging information.",
+        "type": "ConsoleLogSink",
+        "config": {
+            "level": "DEBUG",
+        }
+    },
+    {
+        "name": "DispatchServlet",
+        "type": "DispatchServlet",
+        "config": {
+            "bindings": [
+                {
+                    "pattern":"^/saml",
+                    "object":"FederationServlet"
+                },
+                {
+                    "pattern":"",
+                    "object":"HandlerServlet"
+                }
+            ]
+        }
+    },
+    {
+        "name": "FederationServlet",
+        "type": "org.forgerock.openig.saml.FederationServlet",
+        "config": {
+            "assertionMapping": {
+                "userName":"mail",
+                "password":"employeenumber"
+            },
+            "subjectMapping":"subjectName",
+            "redirectURI":"/parametercheck",
+            "logoutURI":"/wordpress/wp-login.php?action=logout"
+         }
+    },
+    {
+        "name": "HandlerServlet",
+        "type": "HandlerServlet",
+        "config": {
+            "handler": "DispatchHandler",
+            "baseURI":"http://10.45.206.74:8080"
+        }
+    },
+    {
+        "name": "DispatchHandler",
+        "type": "DispatchHandler",
+        "config": {
+            "bindings": [
+                {
+                    "condition": "${empty exchange.session.userName}",
+                    "handler": "SPInitiatedSSORedirectHandler",
+                },
+                {
+                    "handler": "ClientHandler",
+                },
+            ]
+        }
+    },
+    {
+        "name": "SPInitiatedSSORedirectHandler",
+           "type": "StaticResponseHandler",
+           "config": {
+               "status": 302,
+               "reason": "Found",
+               "headers": {
+                   "Location": ["http://atrcxb1395.athtem.eei.ericsson.se:8080/saml/SPInitiatedSSO"]
+               }
+           }
+    },
+    {
+        "name": "ClientHandler",
+        "type": "ClientHandler",
+        "config": {
+        }
+    },
+    ]
+  },
+  "servletObject": "DispatchServlet",
+}
+
++---+	
+	
+	[[4]]Modify DNS or host file settings so the name of your target application resolves to the IP address of OpenIG. Be sure to restart your browser after making this change.
+	
+
++---+
+127.0.0.1       localhost
+::1             localhost
+127.0.0.1 atrcxb1395.athtem.eei.ericsson.se
++--+
+
+	[[5]]Use the OpenAM Console task wizard to create a Fedlet with the name gateway and the Destination URL http://your.app.to.prorect:8080/saml. Configure the Attributes Mapping to contain the mail and employeenumber attributes.
+	
+		[[i]]The choice of 'saml' at the end of the destination URL is arbitrary but if you change this you must edit your config.json file accordingly (StaticResponseHandler and DispatchServlet pattern matching)
+		
+		[[ii]]The choice of attributes mapping is also arbitrary but this will ensure it works with the attached config.json. OpenAM does not allow blank attribute mapping and expects something here (this a bug in OpenAM). To map these attribute they must be set in the user trying to log on i.e. they cannot be null.
+		
+	[[6]] Assuming the created fedlet from the previous step can be found at $HOME/openam/myfedlets/gateway/Fedlet.zip. Extract the Fedlet configuration files as follows:
+	
++---+
+$ cd $HOME/openam/gateway/myfedlets
+$ unzip Fedlet.zip
+$ jar xvf Fedlet.war conf
++---+	
+
+	[[7]] Create a $HOME/.ForgeRock/SAML/ directory, and copy the Fedlet configuration to the new directory
+	
++---+
+$ mkdir $HOME/.ForgeRock/SAML
+$ cp conf/* $HOME/.ForgeRock/SAML
+$ ls $HOME/.ForgeRock/SAML
+FederationConfig.properties    idp-extended.xml        sp-extended.xml
+fedlet.cot                     idp.xml                 sp.xm
++---+
+
+	[[10]]Start the web container where OpenIG is deployed and browse to the target application. OpenIG should now proxy all traffic to the application. OpenIG will redirect users to IDP when it detects that no session exists and will forward to the target application once the user is authenticated. This is SP initiated SSO
+
+	[[11]]For IDP initiated SSO edit the following link depending on the location of your IDP and teh name of your Fedlet: http://<www.your.idp.com:1234>/openam/idpssoinit?NameIDFormat=urn:oasis:names:tc:SAML:2.0:nameid-format:transient&metaAlias=/idp&spEntityID=<gateway>&binding=urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST
+
+	[]
+	
+
+ To understand what is happening behind the scenes, take a look at $HOME/.ForgeRock/OpenIG/config.json. The DispatchServlet provides an internal routing mechanism based on the incoming URI. The DispatchServlet looks at the incoming URI and dispatches to the FederationServlet when the SAML URI is found, otherwise it dispatches to the HandlerServlet and allows pass through unhindered. This allows the FederationServlet to process the incoming assertion, set the attributes from the assertion in the HTTPSession, which then allows the normal chain of filter processing, through the HandlerServlet.
+	
+	
+	
+	

@@ -1,0 +1,108 @@
+		----------------------------------
+			System Administration Guide
+		----------------------------------
+				Alex McAllister and Brian Gunning
+				---------------
+				   2012-10-30
+
+Single Sign On System Administrator Guide
+
+===========================
+
+* 1 Purpose
+
+	The purpose of this document is to describe how to use Single Sign on in 13B as part of TOR. For 13B there are no 'real' administrative functions available. The administrator guide will describe how an administrator can confirm various parts of the SSO solution are working.
+
+
+* 2 Introduction
+
+	Single Sign On is deployed by default as part of TOR installation. Its role is to provide a method so that users only have to authenticate once when signing into any application via TOR Launcher. When a user logs out of one application via TOR Launcher, they are automatically logged out of all active sessions.
+
+** 2.1 Dependencies
+
+	When launching OSS-RC desktop applications from TOR Launcher, Single Sign On has a dependency on Security Service, please see Installation Instructions for details.
+
+* 3 Solution Description
+
+	Single Sign On intercepts all traffic on the TOR Apache Reverse Proxy and authenticates the user making the call. The interception passes the request to Single Sign on instance (heimdallr.war) running on a standalone JBoss instance. If login is required JBoss is configured to authenticate all users against the existing OSS-RC COM-INF LDAP
+
+** 3.1 Administration
+
+	There are no administration features for SSO in 13B.
+
+* 4 Troubleshooting
+
+** 4.1 TOR
+
+	It is possible to verify the health of SSO by calling the following commands:
+
+	[[1]] <<Verify SSO on JBoss is operating ok>>
+
+	Run the command below from anywhere in your network that can resolve the TOR UI Apache substituting <tor.apache.com> below for the actual DNS of the Apache web server:
+
+--------------------
+curl http://{tor.apache.com}/heimdallr/isAlive.jsp
+--------------------
+	
+	You should see a response like this:
+
+---------------------
+<html>
+
+<head>
+    <title>OpenAM</title>
+</head>
+
+<body>
+
+<h1>Server is ALIVE: </h1>
+
+
+</body>
+
+</html>
+---------------------
+
+	The above command will verify that SSO is correctly deployed on JBoss container and that routing through the Apache reverse proxy is successful.
+
+	If the above command was unsuccessful the following command could bypass apache and confirm that SSO is configured correctly. This command would have to be run from a location that can resolve the IP address of the required JBoss i.e. from a Service Controller for example:
+
+----------------------
+curl http://{ipaddress.of.sso.jboss:portNumber}/heimdallr/isAlive.jsp
+----------------------
+
+	[[2]] <<Verify Apache, JBoss and LDAP operation and connectivity:>>
+
+	Run the command below from anywhere in your network that can resolve the TOR UI Apache substituting <tor.apache.com> in the command below for the actual DNS of the Apache web server:
+
+---------------------
+curl "http://{tor.apache.com}/heimdallr/identity/authenticate?username=nothere&password=nothere"
+---------------------
+
+	The expected response will include
+
+--------------------------
+exception.name=com.sun.identity.idsvcs.InvalidCredentials Authentication Failed!!
+--------------------------
+
+	Once this response is received full end to end functionality of Single Sign On can be confirmed.
+
+** 4.2 OSS
+
+	[[1]] <<Verify PAM module is installed>>
+
+	Run the command below from a terminal (on each UAS):
+
+------------------------
+grep libpam /etc/pam.conf
+------------------------
+
+	The output should be similar to this:
+
+------------------------
+bash-3.2# grep libpam /etc/pam.conf
+ica auth sufficient libpam_eric_sso.so debug cntfile=/tmp/COUNTER keyfile=/tmp/MASTERKEY
+bash-3.2#
+------------------------
+
+	The module should be set for ICA protocol as per “ica auth sufficient” in the response.

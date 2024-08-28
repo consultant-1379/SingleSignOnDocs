@@ -1,0 +1,126 @@
+		---------------------
+		SAML Troubleshooting
+		---------------------
+
+Single Sign On Troubleshooting
+
+=====================================
+
+	When testing behaviour between an end-user's browser and the OpenAM server or various client apps, it is possible to use standard browser inspection tools such as in Chrome (Ctrl+Shift+I) or Firefox (Ctrl+Shift+K). However, when troubleshooting on a server where using a browser is not possible, command-line tools are more useful.
+
+* cURL
+	
+	A useful command-line tool for making HTTP requests and examining the responses.
+
+* tcpdump / snoop (Solaris)
+
+	{{{http://danielmiessler.com/study/tcpdump/}A tcpdump primer}}
+
+SAML Troubleshooting
+
+=====================================
+
+	Debugging and troubleshooting SAML falls under two main categories - examining the logs of the various containers hosting Identity Providers and Service Providers, and examining the network traffic between them. For examining log output, try the {{{http://www.sublimetext.com/}Sublime Text Editor}}!
+
+* SAML Tracer
+
+	The most effective and easy to use tool for the team to date has been a Firefox add-on called {{{https://addons.mozilla.org/en-US/firefox/addon/saml-tracer/}SAML Tracer}}, which is similar to {{{https://addons.mozilla.org/en-us/firefox/addon/live-http-headers/}Live HTTP Headers}}. It shows the HTTP request and response headers that show the flow of communication combined with a Base64 decoder to show the SAML tokens in plaintext xml format.
+
+[../images/saml-tracer-headers.png] SAML Tracer showing HTTP headers
+
+
+	Any intercepted traffic that contains a SAML token is flagged. Clicking on the <<SAML>> tab shows the decoded Base64 message.
+
+[../images/saml-tracer-token.png] SAML Tracer showing SAMLv2 token
+
+
+* Wireshark
+
+	For a more detailed look at the network traffic flow between Identity Provider and Service Provider, try {{{http://www.wireshark.org}Wireshark}}. A {{{http://chrissanders.org/2006/06/packet-school-101-part-1/}proper tutorial}} on using Wireshark is beyond the scope of this document. 
+
+[../images/wireshark-capture.png] Sample Wireshark capture
+
+
+	Here are two sample nework traffic captures that Wireshark can open for you to examine. Download and install Wireshark (link above), download capture files and double click to open with Wireshark. The filter function in this software is powerful and will require some reading up to get used to it, but for our purposes, a typical filter would be <<<http and ip.addr == \<your-ip-addr\>>>>. Note the use of booleans and Java/C++-style equality operators, and brackets are allowed.
+
+	* {{{../captures/browser-loadbalancer_summary.pcap}browser-loadbalancer_summary.pcap}} Traffic between a browser (IP address <<159.107.164.213>>) and an Apache httpd load balancer (IP address <<10.45.207.227>>)
+	
+	* {{{../captures/httpd_authbasic_working_capture.pcap}httpd_authbasic_working_capture.pcap}} Traffic between the same load balancer and a JBoss backend running on the same host
+
+	[]
+
+	Add a simple <<<http>>> filter in both captures and click <<Apply>> to get started.
+
+* Logs
+
+	Our main 3PP, Openam, has (in parts) comprehensive log output when logging level is set to <<DEBUG>>. Find them in <<</path/to/openamconfig/openam/debug>>>, and <<</path/to/openamconfig/openam/log>>>. Here is a sample directory listing for an OpenAM instance that has been up and running for a couple of months:
+
++--------------------+
+[root@atclvm589 log]# pwd
+/opt/openam/openam/log
+[root@atclvm589 log]# ls -lh
+total 16M
+-rw-r--r-- 1 jboss server 105K Oct  1 17:20 amAgent_e7e4115b49bbaa_eemea_ericsson_se_8080.log
+-rw-r--r-- 1 jboss server 718K Oct 23 10:18 amAuthentication.access
+-rw-r--r-- 1 jboss server  29K Oct 22 14:23 amAuthentication.error
+-rw-r--r-- 1 jboss server 9.0M Oct 23 10:30 amConsole.access
+-rw-r--r-- 1 jboss server  25K Oct 17 16:16 amConsole.error
+-rw-r--r-- 1 jboss server  41K Oct 18 16:52 amPolicy.access
+-rw-r--r-- 1 jboss server  695 Oct  2 14:35 amPolicyDelegation.access
+-rw-r--r-- 1 jboss server  673 Oct  2 14:35 amPolicy.error
+-rw-r--r-- 1 jboss server 1.1M Oct 23 10:48 amSSO.access
+-rw-r--r-- 1 jboss server  44K Oct 16 10:42 COT.access
+-rw-r--r-- 1 jboss server 2.2K Oct  5 16:31 COT.error
+-rw-r--r-- 1 jboss server 868K Oct 23 10:28 IDFF.access
+-rw-r--r-- 1 jboss server  665 Oct  2 14:45 IDFF.error
+-rw-r--r-- 1 jboss server 3.3M Oct 23 10:15 SAML2.access
+-rw-r--r-- 1 jboss server 3.9K Oct 16 10:41 SAML2.error
+-rw-r--r-- 1 jboss server  22K Oct 15 11:31 ssoadm.access
+-rw-r--r-- 1 jboss server  12K Oct 15 11:04 ssoadm.error
+-rw-r--r-- 1 jboss server  683 Oct  2 14:45 WSFederation.access
+-rw-r--r-- 1 jboss server  681 Oct  2 14:45 WSFederation.error
+[root@atclvm589 log]#
++--------------------+
+
+	Pretty much everything audit-wise is captured here. Here's the debug directory listing:
+
++--------------------+
+[root@atclvm589 debug]# ls -lh
+total 1.4G
+-rw-r--r-- 1 jboss server  78M Oct 23 15:21 amUpgrade
+-rw-r--r-- 1 jboss server 265M Oct 23 15:11 Authentication
+-rw-r--r-- 1 jboss server 360M Oct 23 15:11 Configuration
+-rw-r--r-- 1 jboss server 280M Oct 23 15:20 CoreSystem
+-rw-r--r-- 1 jboss server  38M Oct 23 11:07 Entitlement
+-rw-r--r-- 1 jboss server  47M Oct 23 15:13 Federation
+-rw-r--r-- 1 jboss server 214M Oct 23 15:07 IdRepo
+-rw-r--r-- 1 jboss server  12K Oct 16 16:39 patternMatching
+-rw-r--r-- 1 jboss server  40M Oct 23 11:07 Policy
+-rw-r--r-- 1 jboss server  83M Oct 23 15:14 Session
+-rw-r--r-- 1 jboss server  11K Oct 17 16:37 WebServices
+[root@atclvm589 debug]#
++--------------------+
+
+	This instance has had <<<DEBUG>>> level logging turned on for a while, hence the size of this folder! In a production environment, the level would be left at <<<MESSAGE>>>, or perhaps turned off altogether until actual debugging was required. If we examine one of the log files, we see something like this:
+
++-----------------------+
+...
+"2012-09-28 16:22:02"   "/|http://atclvm589.athtem.eei.ericsson.se/openam/UI/Login|true|true|saml2|Entity descriptor, http://atclvm589.athtem.eei.ericsson.se/openam/UI/Login under realm, / did not exist."    id=amAdmin,ou=user,dc=opensso,dc=java,dc=net    76101ffd017dce5701      "Not Available" INFO    dc=opensso,dc=java,dc=net       "cn=dsameuser,ou=DSAME Users,dc=opensso,dc=java,dc=net" AMCLI-5126      ssoadm.error    "Not Available" 127.0.0.1
+...
++-----------------------+
+
+	The entries can seem daunting at first, but the main thing is to look for a code like <<<AMCLI-5126>>>. This is an error reference that can be looked up in the {{{http://openam.forgerock.org/openam-documentation/openam-doc-source/doc/reference/index/chap-log-messages.html}OpenAM log message reference guide}} for a more detailed explanation. Here's the entry for AMCLI-5126:
+
+	FAILED_EXPORT_ENTITY
+
+	\ \ \ ID: AMCLI-5126
+
+	\ \ \ Level: INFO
+
+	\ \ \ Description: Failed to export entity.
+
+	\ \ \ Data: Realm, Entity ID, Name of file to save the standard metadata XML, Name of file to save the extended metadata XML, protocol specification, error message
+
+	\ \ \ Triggers: Execute export entity Commandline interface.
+
+	\ \ \ Actions: Look under debug file for more information.

@@ -1,0 +1,55 @@
+		----------------------------------
+			System Administration Guide
+		----------------------------------
+				Alex McAllister
+				---------------
+				   2012-10-30
+
+TOR-SSO Administration Guide
+
+===========================
+
+* Overview
+
+	This document serves as an introduction to administering the TOR-SSO Single Sign On solution for TOR/FREJA. Most of the content is from TOR-SSO's own {{{http://docs.forgerock.org/en/openam/10.0.0/admin-guide/index.html}administration guide}}, which is extensive. The most pertinent items are summarised here
+
+* Maintaining User Information
+
+	Since TOR-SSO communicates directly with a user store (e.g., LDAP) containing all the user information, it is preferable to use the LDAP instance's own user interface for this configuration. However, TOR-SSO offers some rudimentary user administration facilities.
+
+	Once logged into TOR-SSO as the user <<amAdmin>>, navigate (via the web console) to <<Access Control>> -\> <Realm Name> -\> <<Subjects>>. Here you will find basic user administration functions such as create, edit and delete users and groups. Changes made here will be reflected in the underlying LDAP store.
+
+* Logging and Tracing
+
+	There is no capability for viewing log output in the TOR-SSO web console, so the administrator will need shell access to the machine where TOR-SSO is deployed. In the FREJA system, the is RedHat Enterprise Linux.
+
+	By default, TOR-SSO sets its debug and log level to <<<ERROR>>>. Assuming <<<$OPENAM_HOME>>> is the path to where TOR-SSO is deployed, the logs are located at
+
+-------------------------
+$OPENAM_HOME/openam/log
+$OPENAM_HOME/openam/debug
+-------------------------
+
+	Each log entry follows a specific format. The first line after the version number gives a list of headings to show what is being logged. Here's an example of such headings
+
+-------------------------
+#Fields: time   Data    LoginID ContextID       IPAddr  LogLevel        Domain  LoggedBy        MessageID       ModuleName      NameID  HostName
+-------------------------
+
+	The more important information is under the <<MessageID>> heading. This contains a reference to the {{{http://openam.forgerock.org/openam-documentation/openam-doc-source/doc/reference/index/chap-log-messages.html}TOR-SSO log message reference guide}}
+
+** Log Maintenance
+
+	While no log viewer interface exists in TOR-SSO, there is a useful log maintenance facility. Log in as <<amAdmin>> and navigate to <<Configuration>> -\> <<System>> -\> <<Logging>>. Here the administrator can set such options as overall logging level, maximum log file size, what fields to capture in the log output, and log file location.
+
+	There is also no function for backing up the logs, so this will fall to normal file system backups
+
+* Troubleshooting
+
+	When problems arise with TOR-SSO, a good procedure is to increase the logging level, first to <<DEBUG>>, then if necessary onto the finer levels. Then attempt to recreate the problem and examine the resulting log output. This should give the troubleshooter a log message reference and allow him/her to discover possible actions to correct the problem.
+
+========================
+
+* References
+
+	* {{http://docs.forgerock.org/en/openam/10.0.0/admin-guide/index.html}}
